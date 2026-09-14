@@ -1,3 +1,228 @@
+/* Final phrase contrast override. */
+#quick-phrases .button {
+	background: var(--soft) !important;
+	color: var(--blue) !important;
+	border: 2px solid var(--blue) !important;
+	font-size: 17px !important;
+	font-weight: 800 !important;
+	text-align: left;
+	line-height: 1.2;
+}
+#quick-phrases .button:hover,
+#quick-phrases .button:focus-visible {
+	background: var(--blue) !important;
+	color: #ffffff !important;
+	outline: 3px solid var(--lav);
+	outline-offset: 1px;
+}
+body #quick-phrases .button {
+	background: #f7fbff !important;
+	color: #142231 !important;
+	border-color: #1769aa !important;
+}
+body .ti83-grid .key.function,
+body .spell-grid .button {
+	background: #e1f1ff !important;
+	color: #084b8f !important;
+	border-color: #1769aa !important;
+}
+body .ti83-grid .key.secondary,
+body .ti83-grid .key.enter,
+body .display-row .button[data-action="backspace"],
+body .display-row .button[data-action="clear"] {
+	background: #ece8ff !important;
+	color: #30266f !important;
+	border-color: #6658bd !important;
+}
+body .sub-tabs .subtab.active {
+	background: #d9efff !important;
+	color: #084b8f !important;
+	border-color: #1769aa !important;
+}
+
+/* Reference-style surfaces must win over the legacy generic button rule below. */
+.workspace,
+.rail,
+.card,
+.subpanel {
+	background: var(--panel) !important;
+	color: var(--ink) !important;
+}
+.right-rail .button {
+	background: var(--soft) !important;
+	color: var(--blue) !important;
+	border: 2px solid var(--blue) !important;
+	font-weight: 800 !important;
+}
+.right-rail .button.green,
+.right-rail .button[data-tab="math"] {
+	background: var(--green) !important;
+	color: var(--ink) !important;
+	border-color: #5caa70 !important;
+}
+.right-rail .button:hover,
+.right-rail .button:focus-visible {
+	background: var(--lav) !important;
+	color: var(--ink) !important;
+	outline: 3px solid var(--soft);
+	outline-offset: 1px;
+}
+
+/* Final readability pass: light surfaces with dark text, high-contrast active states. */
+.button,
+.key,
+.right-rail .button,
+.left-rail .stack .button {
+	background: #f7fbff !important;
+	color: #142231 !important;
+	border-color: #1769aa !important;
+}
+.button.blue,
+.button[data-action="speak"],
+.header-speak {
+	background: #d9efff !important;
+	color: #084b8f !important;
+	border-color: #1769aa !important;
+}
+.button.green,
+.key.action,
+.right-rail .button.green,
+.right-rail .button[data-tab="math"] {
+	background: #dff5e4 !important;
+	color: #164b28 !important;
+	border-color: #28753d !important;
+}
+.key.function,
+.spell-grid .button {
+	background: #e1f1ff !important;
+	color: #084b8f !important;
+	border-color: #1769aa !important;
+}
+.key.secondary,
+.key.enter {
+	background: #ece8ff !important;
+	color: #30266f !important;
+	border-color: #6658bd !important;
+}
+.main-tabs .tab.active {
+	background: #07549e !important;
+	color: #ffffff !important;
+	border-color: #07549e !important;
+}
+.sub-tabs .subtab.active {
+	background: #d9efff !important;
+	color: #084b8f !important;
+	border-color: #1769aa !important;
+}
+.button:hover,
+.key:hover,
+.button:focus-visible,
+.key:focus-visible {
+	background: #07549e !important;
+	color: #ffffff !important;
+	border-color: #07549e !important;
+}
+body[data-theme="high"] .button,
+body[data-theme="high"] .key,
+body[data-theme="high"] .right-rail .button,
+body[data-theme="high"] .left-rail .stack .button {
+	background: #f7fbff !important;
+	color: #102030 !important;
+	border-color: #8bd5ff !important;
+}
+.ti83-grid .key {
+	background: var(--panel) !important;
+	color: var(--ink) !important;
+	border: 2px solid var(--line) !important;
+	font-weight: 800 !important;
+}
+.ti83-grid .key.function {
+	background: var(--soft) !important;
+	color: var(--blue) !important;
+	border-color: var(--blue) !important;
+}
+.ti83-grid .key.action {
+	background: var(--green) !important;
+	color: var(--ink) !important;
+	border-color: #5caa70 !important;
+}
+.ti83-grid .key.secondary,
+.ti83-grid .key.enter,
+.ti83-grid .key.selected {
+	background: var(--lav) !important;
+	color: #403894 !important;
+	border-color: #7565d1 !important;
+}
+.ti83-grid .key:hover,
+.ti83-grid .key:focus-visible {
+	background: var(--blue) !important;
+	color: #ffffff !important;
+	outline: 3px solid var(--soft);
+	outline-offset: 1px;
+}
+.main-tabs .tab,
+.sub-tabs .subtab {
+	background: var(--panel) !important;
+	color: var(--muted) !important;
+	border: 2px solid var(--line) !important;
+	font-weight: 800 !important;
+}
+.main-tabs .tab.active {
+	background: var(--blue) !important;
+	color: #ffffff !important;
+	border-color: var(--blue) !important;
+}
+.sub-tabs .subtab.active {
+	background: var(--soft) !important;
+	color: var(--blue) !important;
+	border-color: var(--blue) !important;
+}
+.display-row input {
+	background: var(--panel) !important;
+	color: var(--ink) !important;
+	border-color: var(--blue) !important;
+}
+.display-row {
+	width: 100%;
+	background: var(--panel);
+	border: 2px solid var(--line);
+	border-radius: 10px;
+	padding: 10px;
+	margin: 10px 0 12px;
+	grid-template-columns: minmax(0, 1fr) 150px 125px 95px;
+}
+.display-row .button {
+	min-height: 62px;
+	font-size: 16px;
+	font-weight: 800;
+}
+.display-row .button.blue {
+	background: var(--soft) !important;
+	color: var(--blue) !important;
+	border: 2px solid var(--blue) !important;
+}
+.display-row .button[data-action="backspace"],
+.display-row .button[data-action="clear"] {
+	background: var(--lav) !important;
+	color: #403894 !important;
+	border: 2px solid #7565d1 !important;
+}
+.display-row .button:hover,
+.display-row .button:focus-visible {
+	background: var(--blue) !important;
+	color: #ffffff !important;
+}
+.right-rail {
+	font-size: 14px;
+}
+.right-rail h2 {
+	font-size: 17px !important;
+}
+.right-rail .button {
+	font-size: 14px !important;
+	min-height: 48px;
+	padding: 9px 8px;
+}
 button, .button, .key, select, input[type="range"] {
 	touch-action: manipulation;
 }
@@ -107,6 +332,126 @@ button, .button, .key, select, input[type="range"] {
 	color: var(--ink);
 	font-weight: 700;
 	line-height: 1.4;
+}
+
+.left-rail .stack .button {
+	background: var(--soft);
+	color: var(--blue);
+	border: 2px solid var(--blue);
+	font-size: 17px;
+	font-weight: 800;
+	text-align: left;
+	line-height: 1.2;
+}
+.left-rail .stack .button:hover,
+.left-rail .stack .button:focus-visible {
+	background: var(--blue);
+	color: #ffffff;
+	outline: 3px solid var(--lav);
+	outline-offset: 1px;
+}
+.left-rail .green {
+	color: var(--ink);
+	font-weight: 800;
+}
+
+/* Clear subject navigation: each tab is a distinct, touchable control. */
+.main-tabs {
+	background: var(--bg);
+	border-bottom: 3px solid var(--blue);
+	padding: 6px 6px 0;
+	gap: 6px;
+}
+.main-tabs .tab {
+	flex: 1 1 0;
+	min-height: 58px;
+	border: 2px solid var(--line);
+	border-bottom: 0;
+	border-radius: 10px 10px 0 0;
+	background: var(--panel);
+	color: var(--muted);
+	font-size: 17px;
+	font-weight: 800;
+}
+.main-tabs .tab.active {
+	background: var(--blue);
+	border-color: var(--blue);
+	color: #fff;
+	box-shadow: 0 -3px 0 var(--blue);
+}
+.sub-tabs {
+	background: var(--panel);
+	border-bottom: 2px solid var(--line);
+	padding: 8px 8px 0;
+	gap: 6px;
+}
+.sub-tabs .subtab {
+	min-height: 48px;
+	border: 1px solid var(--line);
+	border-radius: 8px 8px 0 0;
+	background: var(--panel);
+	color: var(--muted);
+}
+.sub-tabs .subtab.active {
+	background: var(--soft);
+	border-color: var(--blue);
+	color: var(--blue);
+}
+.spell-grid {
+	display: grid;
+	grid-template-columns: repeat(6, minmax(70px, 1fr));
+	gap: 10px;
+	margin-top: 18px;
+}
+.spell-grid .button {
+	min-height: 76px;
+	font-size: 25px;
+	background: var(--soft);
+	color: var(--blue);
+}
+.number-grid {
+	grid-template-columns: repeat(5, minmax(90px, 1fr));
+}
+@media (max-width: 780px) {
+	.main-tabs .tab {
+		flex: 0 0 auto;
+		min-width: 145px;
+	}
+	.spell-grid {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 8px;
+	}
+	.number-grid {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+	.spell-grid .button {
+		min-height: 70px;
+		font-size: 22px;
+	}
+}
+
+body[data-theme="high"] {
+	--bg: #101a25;
+	--panel: #1d2c3b;
+	--ink: #ffffff;
+	--muted: #d7e8f5;
+	--blue: #62c4ff;
+	--soft: #24567c;
+	--green: #2d6546;
+	--lav: #514a89;
+	--line: #6b8da8;
+}
+
+body[data-theme="warm"] {
+	--bg: #fff3e8;
+	--panel: #fffdf9;
+	--ink: #30241f;
+	--muted: #72584b;
+	--blue: #d85d21;
+	--soft: #ffe0bc;
+	--green: #def2d4;
+	--lav: #eee1ff;
+	--line: #e4c3a7;
 }
 
 .ti83-grid {
