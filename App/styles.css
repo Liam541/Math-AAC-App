@@ -122,6 +122,11 @@ button, .button, .key, select, input[type="range"] {
 	background: var(--lav);
 	color: #403894;
 }
+.ti83-grid .key.selected {
+	background: #b9aef5;
+	color: #30256f;
+	border-color: #7565d1;
+}
 @media (min-width: 781px) {
 	body, .app-shell {
 		min-height: 100vh;

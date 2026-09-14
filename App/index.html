@@ -45,10 +45,10 @@
         <div class="math-panel subpanel active" id="basic">
           <h2>Numbers and operators</h2>
           <div class="key-grid ti83-grid">
-            <button class="key secondary" aria-label="Second function">2nd</button><button class="key secondary">MODE</button><button class="key secondary" data-action="backspace">DEL</button><button class="key" data-value="(">(</button><button class="key" data-value=")">)</button><button class="key action" data-value="/" aria-label="Divide">÷</button>
-            <button class="key function" data-value="sin(" aria-label="Sine">sin</button><button class="key function" data-value="cos(" aria-label="Cosine">cos</button><button class="key function" data-value="tan(" aria-label="Tangent">tan</button><button class="key function" data-value="^" aria-label="Power">^</button><button class="key function" data-value="sqrt(" aria-label="Square root">√</button><button class="key action" data-value="*" aria-label="Multiply">×</button>
+            <button class="key secondary" data-action="second" aria-label="Second function">2nd</button><button class="key secondary">MODE</button><button class="key secondary" data-action="backspace">DEL</button><button class="key" data-value="(">(</button><button class="key" data-value=")">)</button><button class="key action" data-value="/" aria-label="Divide">÷</button>
+            <button class="key function secondable" data-value="sin(" data-primary-label="sin" data-secondary-label="sin⁻¹" data-primary-value="sin(" data-secondary-value="asin(" aria-label="Sine">sin</button><button class="key function secondable" data-value="cos(" data-primary-label="cos" data-secondary-label="cos⁻¹" data-primary-value="cos(" data-secondary-value="acos(" aria-label="Cosine">cos</button><button class="key function secondable" data-value="tan(" data-primary-label="tan" data-secondary-label="tan⁻¹" data-primary-value="tan(" data-secondary-value="atan(" aria-label="Tangent">tan</button><button class="key function secondable" data-value="^" data-primary-label="^" data-secondary-label="x²" data-primary-value="^" data-secondary-value="**2" aria-label="Power">^</button><button class="key function secondable" data-value="sqrt(" data-primary-label="√" data-secondary-label="x²" data-primary-value="sqrt(" data-secondary-value="**2" aria-label="Square root">√</button><button class="key action" data-value="*" aria-label="Multiply">×</button>
             <button class="key" data-value="7">7</button><button class="key" data-value="8">8</button><button class="key" data-value="9">9</button><button class="key function" data-value="π" aria-label="Pi">π</button><button class="key function" data-value="e">e</button><button class="key action" data-value="-" aria-label="Subtract">−</button>
-            <button class="key" data-value="4">4</button><button class="key" data-value="5">5</button><button class="key" data-value="6">6</button><button class="key function" data-value="log(" aria-label="Logarithm">log</button><button class="key function" data-value="abs(" aria-label="Absolute value">|x|</button><button class="key action" data-value="+" aria-label="Add">+</button>
+            <button class="key" data-value="4">4</button><button class="key" data-value="5">5</button><button class="key" data-value="6">6</button><button class="key function secondable" data-value="log(" data-primary-label="log" data-secondary-label="10ˣ" data-primary-value="log(" data-secondary-value="10**" aria-label="Logarithm">log</button><button class="key function secondable" data-value="abs(" data-primary-label="|x|" data-secondary-label="sign" data-primary-value="abs(" data-secondary-value="sign(" aria-label="Absolute value">|x|</button><button class="key action" data-value="+" aria-label="Add">+</button>
             <button class="key" data-value="1">1</button><button class="key" data-value="2">2</button><button class="key" data-value="3">3</button><button class="key function" data-value="Ans">Ans</button><button class="key" data-value=".">.</button><button class="key enter" data-action="evaluate" aria-label="Equals">=</button>
             <button class="key" data-value="0">0</button><button class="key" data-value="-">+/-</button><button class="key function" data-value="E">EE</button><button class="key" data-value="%">%</button><button class="key secondary" data-action="clear">CLEAR</button><button class="key enter" data-action="evaluate">ENTER</button>
           </div>
@@ -87,6 +87,32 @@
       speechSynthesis.cancel();
       speechSynthesis.speak(utterance);
       document.querySelector('#status').textContent = 'Speaking: ' + spoken;
+    };
+  </script>
+  <script>
+    let secondMode = false;
+    document.addEventListener('click', event => {
+      const button = event.target.closest('[data-action="second"]');
+      if (!button) return;
+      secondMode = !secondMode;
+      document.querySelectorAll('.secondable').forEach(key => {
+        key.textContent = secondMode ? key.dataset.secondaryLabel : key.dataset.primaryLabel;
+        key.dataset.value = secondMode ? key.dataset.secondaryValue : key.dataset.primaryValue;
+        key.classList.toggle('selected', secondMode);
+      });
+      button.classList.toggle('selected', secondMode);
+      document.querySelector('#status').textContent = secondMode ? 'Second functions active.' : 'Primary functions active.';
+    });
+    const extraFunctions = [['Absolute value', 'abs('], ['Inverse sine', 'asin('], ['Inverse cosine', 'acos('], ['Inverse tangent', 'atan(']], functionsPanel = document.querySelector('[data-buttons="functions"]');
+    extraFunctions.forEach(([label, value]) => { const button = document.createElement('button'); button.className = 'button'; button.textContent = label; button.onclick = () => { document.querySelector('#display').value += value; document.querySelector('#display').focus(); }; functionsPanel.append(button); });
+    window.evaluate = function () {
+      try {
+        let expression = document.querySelector('#display').value.replaceAll('×', '*').replaceAll('÷', '/').replaceAll('−', '-').replaceAll('^', '**').replaceAll('π', 'Math.PI');
+        if (!/^[0-9+*/().%\sA-Za-z_*-]+$/.test(expression)) throw Error('Use numbers and math functions.');
+        expression = expression.replace(/\b(sin|cos|tan|asin|acos|atan|sqrt|log|log10|exp|ceil|floor|abs|sign)\(/g, 'Math.$1(').replace(/Math\.factorial\(([^)]+)\)/g, 'factorial($1)');
+        const result = Function('factorial', 'return ' + expression)(number => { let answer = 1; for (let index = 2; index <= number; index += 1) answer *= index; return answer; });
+        document.querySelector('#display').value = String(Number(result.toFixed(10))); document.querySelector('#status').textContent = 'Result: ' + document.querySelector('#display').value;
+      } catch (error) { document.querySelector('#status').textContent = 'Could not evaluate: ' + error.message; }
     };
   </script>
 </body>
