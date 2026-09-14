@@ -99,6 +99,16 @@ button, .button, .key, select, input[type="range"] {
 	}
 }
 
+.engine-status {
+	padding: 12px;
+	border-radius: 8px;
+	background: var(--green);
+	border: 1px solid #83c991;
+	color: var(--ink);
+	font-weight: 700;
+	line-height: 1.4;
+}
+
 .ti83-grid {
 	display: grid;
 	grid-template-columns: repeat(6, minmax(64px, 1fr));

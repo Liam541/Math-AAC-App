@@ -1,4 +1,4 @@
-const CACHE_NAME = 'math-aac-v5';
+const CACHE_NAME = 'math-aac-v6';
 const APP_ASSETS = ['./', './index.html', './styles.css', './app.js', './manifest.json'];
 
 self.addEventListener('install', event => {

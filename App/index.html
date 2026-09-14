@@ -69,16 +69,15 @@
         <div class="subpanel" id="periodic"><div class="card"><h2>Common elements</h2><p class="muted">Select an element to add its symbol to the display.</p><div class="element-grid" id="element-grid"></div></div></div>
       </section>
 
-      <section class="subject" id="settings"><div class="card settings-card"><h2>Personalize the workspace</h2><label for="theme-select">Color theme</label><select id="theme-select"><option value="light">Bright blue</option><option value="high">High contrast</option><option value="warm">Warm</option></select><label for="size-range">Button and text size</label><input id="size-range" type="range" min="16" max="24" value="18"><label for="voice-select">Speech voice</label><select id="voice-select"></select><label for="rate-range">Speech rate</label><input id="rate-range" type="range" min="100" max="240" value="175"><label for="volume-range">Speech volume</label><input id="volume-range" type="range" min="30" max="100" value="100"><button class="button blue" data-action="test-voice">Test selected voice</button><label class="check"><input id="auto-speak" type="checkbox"> Speak quick phrases immediately</label></div></section>
+      <section class="subject" id="settings"><div class="card settings-card"><h2>Personalize the workspace</h2><label for="theme-select">Color theme</label><select id="theme-select"><option value="light">Bright blue</option><option value="high">High contrast</option><option value="warm">Warm</option></select><label for="size-range">Button and text size</label><input id="size-range" type="range" min="16" max="24" value="18"><label for="kokoro-voice">Kokoro voice</label><select id="kokoro-voice"><option value="af_heart">Heart</option><option value="af_bella">Bella</option><option value="af_sarah">Sarah</option><option value="am_adam">Adam</option><option value="am_michael">Michael</option><option value="bf_emma">Emma</option><option value="bf_isabella">Isabella</option><option value="bm_george">George</option><option value="bm_lewis">Lewis</option></select><p class="engine-status">Primary speech engine: Kokoro. Browser speech is used only if Kokoro is unavailable.</p><label for="voice-select">Browser fallback voice</label><select id="voice-select"></select><label for="rate-range">Speech rate</label><input id="rate-range" type="range" min="100" max="240" value="175"><label for="volume-range">Speech volume</label><input id="volume-range" type="range" min="30" max="100" value="100"><button class="button blue" data-action="test-voice">Test Kokoro voice</button><label class="check"><input id="auto-speak" type="checkbox" checked> Speak quick phrases immediately</label></div></section>
     </section>
 
     <aside class="rail right-rail"><h2>Math Tools</h2><button class="button green" data-tab="math">Calculator</button><button class="button" data-action="graph">Graphing (Basic)</button><button class="button" data-action="history">Equation History</button><h2 class="section-title">User Options</h2><button class="button" data-tab="settings">My Icons</button><button class="button" data-tab="settings">Appearance</button><button class="button" data-tab="settings">Settings</button><p class="status" id="status">Ready. Choose a phrase, symbol, or tool.</p></aside>
   </main>
   <script src="app.js"></script>
   <script>
-    window.speak = function (text = document.querySelector('#display').value) {
-      if (!text.trim() || !('speechSynthesis' in window)) return;
-      const spoken = text.replaceAll('cos(', 'cosine of ').replaceAll('sin(', 'sine of ').replaceAll('tan(', 'tangent of ').replaceAll('sqrt(', 'square root of ').replaceAll('log10(', 'log base ten of ').replaceAll('log(', 'log of ').replaceAll('factorial(', 'factorial of ').replaceAll('π', 'pi').replaceAll('∞', 'infinity').replaceAll('√', 'square root').replaceAll('×', ' multiplied by ').replaceAll('*', ' multiplied by ').replaceAll('÷', ' divided by ').replaceAll('/', ' divided by ').replaceAll('+', ' plus ').replaceAll('−', ' minus ').replaceAll('-', ' minus ').replaceAll('^', ' to the power of ').replaceAll('=', ' equals ').replaceAll('(', ' open parenthesis ').replaceAll(')', ' close parenthesis ');
+    function browserSpeak(spoken) {
+      if (!('speechSynthesis' in window)) return;
       const utterance = new SpeechSynthesisUtterance(spoken);
       const selected = document.querySelector('#voice-select').value;
       utterance.voice = speechSynthesis.getVoices().find(voice => voice.name === selected) || null;
@@ -86,7 +85,29 @@
       utterance.volume = Number(document.querySelector('#volume-range').value) / 100;
       speechSynthesis.cancel();
       speechSynthesis.speak(utterance);
-      document.querySelector('#status').textContent = 'Speaking: ' + spoken;
+      document.querySelector('#status').textContent = 'Speaking with browser fallback.';
+    }
+    window.speak = async function (text = document.querySelector('#display').value) {
+      if (!text.trim()) return;
+      const spoken = text.replaceAll('cos(', 'cosine of ').replaceAll('sin(', 'sine of ').replaceAll('tan(', 'tangent of ').replaceAll('sqrt(', 'square root of ').replaceAll('log10(', 'log base ten of ').replaceAll('log(', 'log of ').replaceAll('factorial(', 'factorial of ').replaceAll('π', 'pi').replaceAll('∞', 'infinity').replaceAll('√', 'square root').replaceAll('×', ' multiplied by ').replaceAll('*', ' multiplied by ').replaceAll('÷', ' divided by ').replaceAll('/', ' divided by ').replaceAll('+', ' plus ').replaceAll('−', ' minus ').replaceAll('-', ' minus ').replaceAll('^', ' to the power of ').replaceAll('=', ' equals ').replaceAll('(', ' open parenthesis ').replaceAll(')', ' close parenthesis ');
+      document.querySelector('#status').textContent = 'Preparing Kokoro speech...';
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      try {
+        const response = await fetch('/api/speak', { signal: controller.signal, method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({text: spoken, voice: document.querySelector('#kokoro-voice').value, speed: Number(document.querySelector('#rate-range').value) / 175}) });
+        if (response.ok) {
+          const audio = new Audio(URL.createObjectURL(await response.blob()));
+          audio.onended = () => URL.revokeObjectURL(audio.src);
+          await audio.play();
+          document.querySelector('#status').textContent = 'Speaking with Kokoro.';
+          return;
+        }
+        throw new Error('Kokoro speech service unavailable');
+      } catch (_error) {
+        browserSpeak(spoken);
+      } finally {
+        clearTimeout(timeout);
+      }
     };
   </script>
   <script>
