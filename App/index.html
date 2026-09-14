@@ -91,7 +91,7 @@
     <aside class="rail right-rail"><h2>Math Tools</h2><button class="button green" data-tab="math">Calculator</button><button class="button" data-action="graph">Graphing (Basic)</button><button class="button" data-action="history">Equation History</button><h2 class="section-title">User Options</h2><button class="button" data-tab="settings">My Icons</button><button class="button" data-tab="settings">Appearance</button><button class="button" data-tab="settings">Settings</button><p class="status" id="status">Ready. Choose a phrase, symbol, or tool.</p></aside>
   <!-- Right rail owns Math Tools, User Options, and the Settings entry point. -->
   </main>
-  <script src="app.js?v=16"></script>
+  <script src="app.js?v=17"></script>
   <script>
     const googleVoiceSelect = document.querySelector('#google-voice');
     if (googleVoiceSelect && !googleVoiceSelect.querySelector('option[value="en-US-Chirp3-HD-Achernar"]')) {
@@ -189,11 +189,11 @@
     extraFunctions.forEach(([label, value]) => { const button = document.createElement('button'); button.className = 'button'; button.textContent = label; button.onclick = () => { document.querySelector('#display').value += value; document.querySelector('#display').focus(); }; functionsPanel.append(button); });
     window.evaluate = function () {
       try {
-        let expression = document.querySelector('#display').value.replaceAll('×', '*').replaceAll('÷', '/').replaceAll('−', '-').replaceAll('^', '**').replaceAll('π', 'Math.PI');
+        let expression = document.querySelector('#display').value.replaceAll('×', '*').replaceAll('÷', '/').replaceAll('−', '-').replaceAll('^', '**').replaceAll('π', 'Math.PI').replace(/\bAns\b/g, document.querySelector('#display').dataset.lastResult || '0').replace(/\be\b/g, 'Math.E');
         if (!/^[0-9+*/().%\sA-Za-z_*-]+$/.test(expression)) throw Error('Use numbers and math functions.');
-        expression = expression.replace(/\b(sin|cos|tan|asin|acos|atan|sqrt|log|log10|exp|ceil|floor|abs|sign)\(/g, 'Math.$1(').replace(/Math\.factorial\(([^)]+)\)/g, 'factorial($1)');
+        expression = expression.replace(/\b(sin|cos|tan|asin|acos|atan|sqrt|log|log10|exp|ceil|floor|abs|sign|factorial)\(/g, 'Math.$1(').replace(/Math\.factorial\(([^)]+)\)/g, 'factorial($1)');
         const result = Function('factorial', 'return ' + expression)(number => { let answer = 1; for (let index = 2; index <= number; index += 1) answer *= index; return answer; });
-        document.querySelector('#display').value = String(Number(result.toFixed(10))); document.querySelector('#status').textContent = 'Result: ' + document.querySelector('#display').value;
+        const formattedResult = String(Number(result.toFixed(10))); document.querySelector('#display').value = formattedResult; document.querySelector('#display').dataset.lastResult = formattedResult; lastResult = formattedResult; document.querySelector('#status').textContent = 'Result: ' + formattedResult;
       } catch (error) { document.querySelector('#status').textContent = 'Could not evaluate: ' + error.message; }
     };
   </script>

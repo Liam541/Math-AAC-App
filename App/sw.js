@@ -1,5 +1,5 @@
 // Cache the app shell so the AAC and offline Kokoro workflows remain available offline.
-const CACHE_NAME = 'math-aac-v17';
+const CACHE_NAME = 'math-aac-v18';
 const APP_ASSETS = ['./', './index.html', './styles.css', './app.js', './manifest.json'];
 
 self.addEventListener('install', event => {
