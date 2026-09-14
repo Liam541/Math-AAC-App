@@ -1,0 +1,12 @@
+{
+  "name": "Math AAC Workspace",
+  "short_name": "Math AAC",
+  "description": "Accessible communication, mathematics, and chemistry tools.",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#eaf5fc",
+  "theme_color": "#1269d3",
+  "categories": ["education", "accessibility", "productivity"]
+}

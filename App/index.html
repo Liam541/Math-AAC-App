@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1269d3">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Math AAC Workspace</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div><div class="brand">MATH AAC</div><div class="tagline">Communication, mathematics, and chemistry</div></div>
+    <button class="button header-speak" data-action="speak">Speak</button>
+  </header>
+  <main class="app-shell">
+    <aside class="rail left-rail">
+      <h2>Quick Phrases</h2>
+      <p class="rail-help">Common responses for easy communication.</p>
+      <div class="stack" id="quick-phrases"></div>
+      <button class="button green" data-tab="communication">Custom Phrases</button>
+    </aside>
+
+    <section class="workspace">
+      <nav class="tabs main-tabs" aria-label="Main subjects">
+        <button class="tab active" data-tab="math">Math Board</button>
+        <button class="tab" data-tab="communication">Communication</button>
+        <button class="tab" data-tab="chemistry">Chemistry</button>
+        <button class="tab" data-tab="settings">Settings</button>
+      </nav>
+      <div class="display-row">
+        <input id="display" aria-label="Input and display area" autocomplete="off" placeholder="Type a message or equation">
+        <button class="button blue" data-action="speak">Speak</button>
+        <button class="button small" data-action="backspace">Backspace</button>
+        <button class="button small" data-action="clear">Clear</button>
+      </div>
+
+      <section class="subject active" id="math">
+        <nav class="tabs sub-tabs" aria-label="Math subjects">
+          <button class="subtab active" data-subtab="basic">Basic</button><button class="subtab" data-subtab="algebra">Algebra</button><button class="subtab" data-subtab="calculus">Calculus</button><button class="subtab" data-subtab="greek">Greek / Discrete</button><button class="subtab" data-subtab="functions">Functions</button>
+        </nav>
+        <div class="math-panel subpanel active" id="basic">
+          <h2>Numbers and operators</h2>
+          <div class="key-grid ti83-grid">
+            <button class="key secondary" aria-label="Second function">2nd</button><button class="key secondary">MODE</button><button class="key secondary" data-action="backspace">DEL</button><button class="key" data-value="(">(</button><button class="key" data-value=")">)</button><button class="key action" data-value="/" aria-label="Divide">÷</button>
+            <button class="key function" data-value="sin(" aria-label="Sine">sin</button><button class="key function" data-value="cos(" aria-label="Cosine">cos</button><button class="key function" data-value="tan(" aria-label="Tangent">tan</button><button class="key function" data-value="^" aria-label="Power">^</button><button class="key function" data-value="sqrt(" aria-label="Square root">√</button><button class="key action" data-value="*" aria-label="Multiply">×</button>
+            <button class="key" data-value="7">7</button><button class="key" data-value="8">8</button><button class="key" data-value="9">9</button><button class="key function" data-value="π" aria-label="Pi">π</button><button class="key function" data-value="e">e</button><button class="key action" data-value="-" aria-label="Subtract">−</button>
+            <button class="key" data-value="4">4</button><button class="key" data-value="5">5</button><button class="key" data-value="6">6</button><button class="key function" data-value="log(" aria-label="Logarithm">log</button><button class="key function" data-value="abs(" aria-label="Absolute value">|x|</button><button class="key action" data-value="+" aria-label="Add">+</button>
+            <button class="key" data-value="1">1</button><button class="key" data-value="2">2</button><button class="key" data-value="3">3</button><button class="key function" data-value="Ans">Ans</button><button class="key" data-value=".">.</button><button class="key enter" data-action="evaluate" aria-label="Equals">=</button>
+            <button class="key" data-value="0">0</button><button class="key" data-value="-">+/-</button><button class="key function" data-value="E">EE</button><button class="key" data-value="%">%</button><button class="key secondary" data-action="clear">CLEAR</button><button class="key enter" data-action="evaluate">ENTER</button>
+          </div>
+          <button class="button blue wide" data-action="speak">Read the result aloud</button>
+        </div>
+        <div class="subpanel" id="algebra"><h2>Algebra controls</h2><div class="button-grid" data-buttons="algebra"></div></div>
+        <div class="subpanel" id="calculus"><h2>Calculus controls</h2><div class="button-grid" data-buttons="calculus"></div></div>
+        <div class="subpanel" id="greek"><h2>Greek and discrete mathematics</h2><div class="button-grid" data-buttons="greek"></div></div>
+        <div class="subpanel" id="functions"><h2>Common functions</h2><div class="button-grid" data-buttons="functions"></div></div>
+      </section>
+
+      <section class="subject" id="communication"><div class="communication-grid"><div class="card"><h2>Sentence builder</h2><div class="button-grid" data-buttons="words"></div><button class="button green wide" data-action="speak">Speak sentence</button></div><div class="card"><h2>My phrases</h2><p class="muted">Choose a phrase from the left rail or build one here.</p><button class="button blue wide" data-action="speak">Read display aloud</button></div></div></section>
+
+      <section class="subject" id="chemistry">
+        <nav class="tabs sub-tabs"><button class="subtab active" data-subtab="formula">Formula and Mass</button><button class="subtab" data-subtab="stoich">Stoichiometry</button><button class="subtab" data-subtab="periodic">Periodic Table</button></nav>
+        <div class="subpanel active" id="formula"><div class="card"><h2>Formula and molar mass</h2><label for="formula-input">Chemical formula</label><input id="formula-input" value="H2O"><button class="button green wide" id="mass-button">Calculate molar mass</button><div class="result" id="mass-result">Enter a formula and calculate.</div></div></div>
+        <div class="subpanel" id="stoich"><div class="card"><h2>Stoichiometry calculator</h2><label for="substance-input">Substance formula</label><input id="substance-input" value="H2O"><label for="grams-input">Amount in grams</label><input id="grams-input" value="18" type="number"><button class="button green wide" id="stoich-button">Convert grams to moles</button><button class="button blue wide" data-action="speak-result">Read calculation</button><div class="result" id="stoich-result">Enter a substance and mass.</div></div></div>
+        <div class="subpanel" id="periodic"><div class="card"><h2>Common elements</h2><p class="muted">Select an element to add its symbol to the display.</p><div class="element-grid" id="element-grid"></div></div></div>
+      </section>
+
+      <section class="subject" id="settings"><div class="card settings-card"><h2>Personalize the workspace</h2><label for="theme-select">Color theme</label><select id="theme-select"><option value="light">Bright blue</option><option value="high">High contrast</option><option value="warm">Warm</option></select><label for="size-range">Button and text size</label><input id="size-range" type="range" min="16" max="24" value="18"><label for="voice-select">Speech voice</label><select id="voice-select"></select><label for="rate-range">Speech rate</label><input id="rate-range" type="range" min="100" max="240" value="175"><label for="volume-range">Speech volume</label><input id="volume-range" type="range" min="30" max="100" value="100"><button class="button blue" data-action="test-voice">Test selected voice</button><label class="check"><input id="auto-speak" type="checkbox"> Speak quick phrases immediately</label></div></section>
+    </section>
+
+    <aside class="rail right-rail"><h2>Math Tools</h2><button class="button green" data-tab="math">Calculator</button><button class="button" data-action="graph">Graphing (Basic)</button><button class="button" data-action="history">Equation History</button><h2 class="section-title">User Options</h2><button class="button" data-tab="settings">My Icons</button><button class="button" data-tab="settings">Appearance</button><button class="button" data-tab="settings">Settings</button><p class="status" id="status">Ready. Choose a phrase, symbol, or tool.</p></aside>
+  </main>
+  <script src="app.js"></script>
+  <script>
+    window.speak = function (text = document.querySelector('#display').value) {
+      if (!text.trim() || !('speechSynthesis' in window)) return;
+      const spoken = text.replaceAll('cos(', 'cosine of ').replaceAll('sin(', 'sine of ').replaceAll('tan(', 'tangent of ').replaceAll('sqrt(', 'square root of ').replaceAll('log10(', 'log base ten of ').replaceAll('log(', 'log of ').replaceAll('factorial(', 'factorial of ').replaceAll('π', 'pi').replaceAll('∞', 'infinity').replaceAll('√', 'square root').replaceAll('×', ' multiplied by ').replaceAll('*', ' multiplied by ').replaceAll('÷', ' divided by ').replaceAll('/', ' divided by ').replaceAll('+', ' plus ').replaceAll('−', ' minus ').replaceAll('-', ' minus ').replaceAll('^', ' to the power of ').replaceAll('=', ' equals ').replaceAll('(', ' open parenthesis ').replaceAll(')', ' close parenthesis ');
+      const utterance = new SpeechSynthesisUtterance(spoken);
+      const selected = document.querySelector('#voice-select').value;
+      utterance.voice = speechSynthesis.getVoices().find(voice => voice.name === selected) || null;
+      utterance.rate = Number(document.querySelector('#rate-range').value) / 175;
+      utterance.volume = Number(document.querySelector('#volume-range').value) / 100;
+      speechSynthesis.cancel();
+      speechSynthesis.speak(utterance);
+      document.querySelector('#status').textContent = 'Speaking: ' + spoken;
+    };
+  </script>
+</body>
+</html>
