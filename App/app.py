@@ -215,7 +215,7 @@ def main() -> None:
     args = parser.parse_args()
     handler = functools.partial(AACRequestHandler, directory=str(APP_DIR))
     server = http.server.ThreadingHTTPServer(("127.0.0.1", args.port), handler)
-    url = f"http://127.0.0.1:{args.port}/index.html?v=22"
+    url = f"http://127.0.0.1:{args.port}/index.html?v=24"
     print(f"Math AAC: {url}\nPress Ctrl+C to stop.")
     if not args.no_browser:
         threading.Timer(0.3, lambda: webbrowser.open(url)).start()

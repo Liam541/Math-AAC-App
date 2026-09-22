@@ -14,9 +14,8 @@ button:hover, a.button:hover { background:var(--soft); border-color:var(--blue);
 :focus-visible { outline:4px solid var(--blue); outline-offset:3px; }
 button:active { box-shadow:inset 0 0 0 3px var(--blue); }
 [hidden] { display:none !important; }
-.topbar { display:flex; align-items:center; justify-content:space-between; gap:var(--gap); background:var(--blue); color:var(--panel); padding:16px 24px;  }
-.brand { font-size:1.65rem; font-weight:800; letter-spacing:1px; }
-.tagline { font-size:0.95em; }
+.app-footer { display:flex; justify-content:center; flex-wrap:wrap; gap:4px 12px; padding:8px 16px 16px; color:var(--muted); font-size:0.8em; text-align:center; }
+.brand { font-weight:700; letter-spacing:0.06em; }
 .app-shell { display:grid; grid-template-columns:minmax(180px,240px) minmax(0,1fr); gap:var(--gap); max-width:1600px; margin:12px auto; padding:0 12px; align-items:start; }
 .rail,.workspace,.card,.subpanel { background:var(--panel); border:1px solid var(--line); border-radius:12px; min-width:0; }
 .rail,.workspace { padding:14px; }
@@ -32,7 +31,7 @@ h2 { font-size:1.2em; margin:0 0 12px; color:var(--blue); } h3 { font-size:1.1em
 .key.function,.spell-grid .button { font-size:var(--icon,28px); }
 .sub-tabs { margin:12px 0; }
 .subtab.active,.selected { background:var(--soft); border-color:var(--blue); color:var(--blue); }
-.display-row { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:var(--gap); margin:14px 0; }
+.display-row { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:var(--gap); margin:14px 0; }
 .display-row input { grid-column:1/-1; font-size:1.3em; border-color:var(--blue); }
 .editing-tools { margin-bottom:14px; }
 .subject,.subpanel { display:none; }
@@ -68,7 +67,7 @@ output { font-weight:normal; }
   .workspace,.rail { width:100%; }
   .left-rail { order:1; }
   #quick-phrases { grid-template-columns:repeat(auto-fit,minmax(min(100%,var(--tile)),1fr)); }
-  .topbar { padding:12px; flex-wrap:wrap; }
+  .display-row { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .phrase-row { grid-template-columns:1fr 1fr; }
   .phrase-row > :first-child { grid-column:1/-1; }
   .subpanel,.card,.workspace { padding:10px; }

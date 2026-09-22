@@ -1,6 +1,6 @@
 // Cache only the app shell; never cache speech, status, or arbitrary external requests.
-const CACHE_NAME = 'math-aac-v22';
-const APP_ASSETS = ['./', './index.html', './styles.css?v=22', './math.js?v=22', './speech.js?v=22', './app.js?v=22', './manifest.json'];
+const CACHE_NAME = 'math-aac-v24';
+const APP_ASSETS = ['./', './index.html', './styles.css?v=24', './math.js?v=24', './speech.js?v=24', './app.js?v=24', './manifest.json'];
 const ASSET_URLS = new Set(APP_ASSETS.map(asset => new URL(asset, self.registration.scope).href));
 
 self.addEventListener('install', event => {

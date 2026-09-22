@@ -1,13 +1,13 @@
 # Math AAC workspace
 
-Run `python App/app.py` from the repository root. Restart the server after updating and open http://127.0.0.1:8765/index.html?v=22. An already-open app offers a reload button that preserves the current message.
+Run `python App/app.py` from the repository root. Restart the server after updating and open http://127.0.0.1:8765/index.html?v=24. An already-open app offers a reload button that preserves the current message.
 
 The command window shows the app address and how to stop the server. Successful file requests and cache checks are quiet; failed requests still appear for troubleshooting.
 
 ## What each part does
 
 - **Math Board** builds and speaks mathematical notation with large buttons. Its keypad also calculates offline: arithmetic, powers, roots, logarithms, trigonometry, percentages, factorials, combinations, and permutations. Algebra, Calculus, Greek / Discrete, and Functions are input boards for the shared message. They do not solve equations.
-- **Calculator** loads Desmos when first opened online. It stays loaded when changing tabs. Use the new-tab link if the embed is unavailable, or Load / retry to reload it (this resets unsaved Desmos work). Desmos requires internet and is not included in the offline cache.
+- **Calculator** loads the full Desmos editor inside the app when first opened online. Enter equations in its expression list using a keyboard or the Desmos on-screen keypad. The preview-only `?embed` URL is intentionally avoided because it hides expression entry. It stays loaded when changing tabs. Use the new-tab link if the embed is unavailable, or Load / retry to reload it (this resets unsaved Desmos work). Desmos requires internet and is not included in the offline cache.
 - **Spell** provides letters, numbers, punctuation, and common words for composing messages.
 - **My phrases** saves, edits, and removes up to 20 personal phrases. Quick phrases remain available on every screen. They speak immediately by default; disable that behavior in Settings to preview them first.
 - **History** stores the latest 30 Math Board calculations for this session. Restore an expression or speak a result. Desmos calculations are separate.
