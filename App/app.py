@@ -88,10 +88,11 @@ class KokoroEngine:
             import soundfile as sf
 
             chunks = []
-            for _, _, audio in self.pipeline(text, voice=voice, speed=speed):
-                if hasattr(audio, "detach"):
-                    audio = audio.detach().cpu().numpy()
-                chunks.append(np.asarray(audio))
+            for result in self.pipeline(text, voice=voice, speed=speed):
+                audio = result.audio
+                if audio is None:
+                    continue
+                chunks.append(np.asarray(audio.detach().cpu().numpy()))
             if not chunks:
                 raise ValueError("Kokoro returned no audio.")
             output = io.BytesIO()

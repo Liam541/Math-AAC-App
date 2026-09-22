@@ -66,6 +66,27 @@ The application includes a calculator for solving and communicating mathematical
 
 The planned functionality is intended to support multiple types of mathematical operations rather than limiting the application to basic arithmetic.
 
+#### Named functions
+
+Open **Math Board → Functions**, or press **Define functions** below the calculator. Choose **Define f(x)**, enter a rule such as `2x+3`, and press **Save function**. Select the saved function, enter `5` in **Evaluate at**, and press **Evaluate selected function**. The keypad edits the last selected Rule, Evaluate at, or Display field.
+
+For composition, select an outer saved function and an inner function under **Compose with**, enter the inner function's arguments in **Evaluate at**, then press **Evaluate composition**. **Edit selected** loads a definition for editing. **Use in calculator** inserts a call with the cursor inside its parentheses; the calculator also has a saved-function selector and **Insert saved function** button.
+
+You can still type directly into the shared display and press **Evaluate display** in the Functions tab, **ENTER** on the calculator, or Enter on the keyboard:
+
+* Define `f(x)=2x+3`, then evaluate `f(5)` to get `13`.
+* Define `g(x)=x^2`, then evaluate `f(g(2))` to get `11`.
+* Define compositions directly: `h(t)=f(g(t))`.
+* Multiple parameters work too: `h(x,y)=x^2+y^2`, then `h(3,4)` gives `25`.
+* Use implied multiplication (`2x`, `2(x+1)`), powers (`^` or `**`), and existing scientific functions. Write `x*y` for products of distinct named variables.
+* `y=x^2` is shorthand for `f(x)=x^2`. Angles use radians; `log` and `ln` remain natural logarithms, and `log10` is base ten.
+
+Definitions are saved in this browser when local storage is available. The saved-function selectors and **List functions** show them; saving the same name replaces its definition. Define dependencies first. Invalid or circular definitions leave previous definitions intact. Clear clears the selected keypad field without deleting saved functions. `Ans` retains the last numeric result and is captured when used in a definition.
+
+Evaluation returns real numeric values. Symbolic simplification, equation solving, and step-by-step solutions are not included.
+
+Function tests: `node --test --experimental-test-isolation=none App/tests/functions.test.cjs`.
+
 ### Personalized Icons
 
 The interface can be customized for individual users.

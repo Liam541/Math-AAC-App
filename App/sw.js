@@ -1,6 +1,6 @@
 // Cache the app shell so the AAC and offline Kokoro workflows remain available offline.
-const CACHE_NAME = 'math-aac-v18';
-const APP_ASSETS = ['./', './index.html', './styles.css', './app.js', './manifest.json'];
+const CACHE_NAME = 'math-aac-v20-function-controls';
+const APP_ASSETS = ['./', './index.html', './styles.css?v=15', './app.js?v=20', './functions.js?v=1', './functions-ui.js?v=2', './manifest.json'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_ASSETS)));
@@ -14,6 +14,17 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+  if (new URL(event.request.url).pathname.startsWith('/api/')) return;
+  if (event.request.mode === 'navigate') {
+    event.respondWith(fetch(event.request).then(response => {
+      if (response.ok) {
+        const copy = response.clone();
+        event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.put('./index.html', copy)));
+      }
+      return response;
+    }).catch(() => caches.match('./index.html')));
+    return;
+  }
   event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
     const copy = response.clone();
     caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
