@@ -1,7 +1,6 @@
-// Cache only the app shell; never cache speech, status, or arbitrary external requests.
-const CACHE_NAME = 'math-aac-v24';
-const APP_ASSETS = ['./', './index.html', './styles.css?v=24', './math.js?v=24', './speech.js?v=24', './app.js?v=24', './manifest.json'];
-const ASSET_URLS = new Set(APP_ASSETS.map(asset => new URL(asset, self.registration.scope).href));
+// Cache the app shell so the AAC and offline Kokoro workflows remain available offline.
+const CACHE_NAME = 'math-aac-v18';
+const APP_ASSETS = ['./', './index.html', './styles.css', './app.js', './manifest.json'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_ASSETS)));
@@ -9,24 +8,15 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('math-aac-') && key !== CACHE_NAME).map(key => caches.delete(key)))).then(() => self.clients.claim()));
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)))));
+  self.clients.claim();
 });
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
-  const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
-  // Versioned launch URLs bypass old cache-first workers; all new navigations share one offline page.
-  const asset = event.request.mode === 'navigate' ? new URL('./index.html', self.registration.scope).href : url.href;
-  if (!ASSET_URLS.has(asset)) return;
-  event.respondWith((async () => {
-    const cache = await caches.open(CACHE_NAME);
-    try {
-      const response = await fetch(event.request);
-      if (response.ok) await cache.put(asset, response.clone());
-      return response;
-    } catch {
-      return await cache.match(asset) || Response.error();
-    }
-  })());
+  event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
+    const copy = response.clone();
+    caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+    return response;
+  })));
 });
