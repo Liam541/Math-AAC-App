@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import contextlib
 import functools
 import http.server
 import io
+import importlib.util
 import json
+import math
 import os
 import pathlib
 import sys
@@ -23,21 +27,32 @@ if KOKORO_PACKAGE_DIR.is_dir() and str(KOKORO_PACKAGE_DIR) not in sys.path:
     sys.path.insert(0, str(KOKORO_PACKAGE_DIR))
 
 
+@contextlib.contextmanager
+def speech_slot(lock: threading.Lock):
+    """Do not queue obsolete utterances behind a slow model load or synthesis."""
+    if not lock.acquire(blocking=False):
+        raise RuntimeError("Speech engine is busy. Use device speech while it finishes.")
+    try:
+        yield
+    finally:
+        lock.release()
+
+
 class GoogleCloudEngine:
-    # Google is preferred when credentials exist; the request handler falls back to Kokoro.
+    # Optional cloud speech. Device speech is the browser's default.
     def __init__(self) -> None:
         self.client = None
         self.lock = threading.Lock()
 
-    def synthesize(self, text: str, voice: str, speed: float = 1.0, volume: int = 100) -> bytes:
-        api_key = os.environ.get("GOOGLE_TTS_API_KEY", "").strip()
-        if api_key:
-            return self.synthesize_with_api_key(text, voice, speed, volume, api_key)
-        with self.lock:
-            if self.client is None:
-                from google.cloud import texttospeech
-                self.client = texttospeech.TextToSpeechClient()
+    def synthesize(self, text: str, voice: str, speed: float = 1.0) -> bytes:
+        with speech_slot(self.lock):
+            api_key = os.environ.get("GOOGLE_TTS_API_KEY", "").strip()
+            if api_key:
+                return self.synthesize_with_api_key(text, voice, speed, api_key)
             from google.cloud import texttospeech
+
+            if self.client is None:
+                self.client = texttospeech.TextToSpeechClient()
 
             language_code = "-".join(voice.split("-")[:2]) if voice.startswith("en-") else "en-US"
             request = texttospeech.SynthesizeSpeechRequest(
@@ -45,19 +60,18 @@ class GoogleCloudEngine:
                 voice=texttospeech.VoiceSelectionParams(name=voice, language_code=language_code),
                 audio_config=texttospeech.AudioConfig(
                     audio_encoding=texttospeech.AudioEncoding.LINEAR16,
-                    speaking_rate=max(0.25, min(speed, 4.0)),
-                    volume_gain_db=max(-10.0, min((volume - 100) / 5, 10.0)),
+                    speaking_rate=speed,
                 ),
             )
-            return self.client.synthesize_speech(request=request).audio_content
+            return self.client.synthesize_speech(request=request, timeout=5, retry=None).audio_content
 
     @staticmethod
-    def synthesize_with_api_key(text: str, voice: str, speed: float, volume: int, api_key: str) -> bytes:
+    def synthesize_with_api_key(text: str, voice: str, speed: float, api_key: str) -> bytes:
         language_code = "-".join(voice.split("-")[:2]) if voice.startswith("en-") else "en-US"
         payload = json.dumps({
             "input": {"text": text},
             "voice": {"languageCode": language_code, "name": voice},
-            "audioConfig": {"audioEncoding": "LINEAR16", "speakingRate": max(0.25, min(speed, 4.0)), "volumeGainDb": max(-10.0, min((volume - 100) / 5, 10.0))},
+            "audioConfig": {"audioEncoding": "LINEAR16", "speakingRate": speed},
         }).encode("utf-8")
         request = urllib.request.Request(
             f"https://texttospeech.googleapis.com/v1/text:synthesize?key={api_key}",
@@ -66,29 +80,29 @@ class GoogleCloudEngine:
             method="POST",
         )
         try:
-            response = urllib.request.urlopen(request, timeout=20)
-            return __import__("base64").b64decode(json.loads(response.read())["audioContent"])
+            with urllib.request.urlopen(request, timeout=5) as response:
+                return base64.b64decode(json.loads(response.read())["audioContent"])
         except urllib.error.HTTPError as error:
-            detail = error.read().decode("utf-8", errors="replace")
-            raise RuntimeError(f"Google Cloud API error {error.code}: {detail}") from error
+            raise RuntimeError(f"Google Cloud API error {error.code}.") from error
 
 
 class KokoroEngine:
-    # Offline neural speech engine used when Google is unavailable or the device is offline.
+    # Optional local neural speech; the browser handles device-voice fallback.
     def __init__(self) -> None:
-        self.pipeline = None
+        self.pipelines = {}
         self.lock = threading.Lock()
 
     def synthesize(self, text: str, voice: str = "af_heart", speed: float = 1.0) -> bytes:
-        with self.lock:
-            if self.pipeline is None:
+        with speech_slot(self.lock):
+            language = "b" if voice.startswith("b") else "a"
+            if language not in self.pipelines:
                 from kokoro import KPipeline
-                self.pipeline = KPipeline(lang_code="a")
+                self.pipelines[language] = KPipeline(lang_code=language)
             import numpy as np
             import soundfile as sf
 
             chunks = []
-            for _, _, audio in self.pipeline(text, voice=voice, speed=speed):
+            for _, _, audio in self.pipelines[language](text, voice=voice, speed=speed):
                 if hasattr(audio, "detach"):
                     audio = audio.detach().cpu().numpy()
                 chunks.append(np.asarray(audio))
@@ -103,33 +117,39 @@ KOKORO = KokoroEngine()
 GOOGLE_CLOUD = GoogleCloudEngine()
 
 GOOGLE_VOICES = {
-    "en-US-Chirp3-HD-Achernar": "English US - Chirp 3 HD Achernar",
-    "en-US-Neural2-F": "English US - Neural Female",
-    "en-US-Neural2-C": "English US - Neural Male",
-    "en-US-Wavenet-F": "English US - Wavenet Female",
-    "en-US-Wavenet-D": "English US - Wavenet Male",
-    "en-GB-Neural2-A": "English UK - Neural Female",
-    "en-GB-Neural2-B": "English UK - Neural Male",
+    "en-US-Chirp3-HD-Achernar", "en-US-Neural2-F", "en-US-Neural2-D",
+    "en-US-Wavenet-F", "en-US-Wavenet-D", "en-GB-Neural2-A", "en-GB-Neural2-B",
 }
+KOKORO_VOICES = {"af_heart", "af_bella", "af_sarah", "am_adam", "am_michael", "bf_emma", "bf_isabella", "bm_george", "bm_lewis"}
+
+
+def package_available(name: str) -> bool:
+    """Probe installation without loading a neural model during a status request."""
+    try:
+        return importlib.util.find_spec(name) is not None
+    except (ImportError, ValueError, AttributeError):
+        return False
 
 
 class AACRequestHandler(http.server.SimpleHTTPRequestHandler):
     # Serves the PWA files and exposes speech/status endpoints for the browser frontend.
+    def log_request(self, code="-", size="-") -> None:
+        # Routine file loads and cache checks are not useful console output.
+        if code != "-" and int(code) >= 400:
+            super().log_request(code, size)
+
+    def end_headers(self) -> None:
+        if not self.path.startswith("/api/"):
+            self.send_header("Cache-Control", "no-cache")
+        super().end_headers()
+
     def do_GET(self) -> None:
         if self.path == "/api/tts-status":
-            try:
-                import kokoro  # type: ignore # noqa: F401
-                available = True
-                error = ""
-            except Exception as exception:
-                available = False
-                error = str(exception)
-            try:
-                from google.cloud import texttospeech  # type: ignore # noqa: F401
-                google_available = True
-            except Exception:
-                google_available = False
-            self.send_json({"google_cloud": google_available, "google_configured": bool(os.environ.get("GOOGLE_TTS_API_KEY") or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")), "kokoro": available, "package_dir": str(KOKORO_PACKAGE_DIR), "error": error})
+            self.send_json({
+                "google_cloud": bool(os.environ.get("GOOGLE_TTS_API_KEY")) or package_available("google.cloud.texttospeech"),
+                "google_configured": bool(os.environ.get("GOOGLE_TTS_API_KEY") or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")),
+                "kokoro": package_available("kokoro"),
+            })
             return
         super().do_GET()
 
@@ -139,49 +159,53 @@ class AACRequestHandler(http.server.SimpleHTTPRequestHandler):
             return
         try:
             length = int(self.headers.get("Content-Length", "0"))
+            if not 0 < length <= 32768:
+                self.send_json({"error": "Speech request must be between 1 and 32768 bytes."}, status=413)
+                return
             request = json.loads(self.rfile.read(length))
-            text = str(request.get("text", ""))
-            engine = str(request.get("engine", "google"))
+            if not isinstance(request, dict):
+                raise ValueError("Expected a JSON object.")
+            text = request.get("text", "")
+            if not isinstance(text, str) or not text.strip() or len(text) > 2000:
+                raise ValueError("Enter between 1 and 2000 characters of speech.")
+            engine = request.get("engine", "kokoro")
+            if engine not in ("google", "kokoro"):
+                raise ValueError("Choose google or kokoro for server speech.")
             speed = float(request.get("speed", 1.0))
-            volume = int(request.get("volume", 100))
-            engine_used = engine
-            voice_used = str(request.get("voice", "en-US-Chirp3-HD-Achernar"))
-            fallback_reason = ""
+            if not math.isfinite(speed) or not 0.5 <= speed <= 2:
+                raise ValueError("Speech speed must be between 0.5 and 2.")
+            voice_used = request.get("voice", "en-US-Neural2-F") if engine == "google" else request.get("kokoro_voice", "af_heart")
+            if not isinstance(voice_used, str) or voice_used not in (GOOGLE_VOICES if engine == "google" else KOKORO_VOICES):
+                raise ValueError("Choose a supported voice.")
+        except (ValueError, TypeError, OverflowError) as error:
+            self.send_json({"error": str(error)}, status=400)
+            return
+        try:
+            # Fail promptly; the browser owns cancellation and immediate device fallback.
             if engine == "google":
-                try:
-                    audio = GOOGLE_CLOUD.synthesize(text, voice_used, speed, volume)
-                except Exception as google_error:
-                    fallback_reason = str(google_error)
-                    try:
-                        voice_used = str(request.get("kokoro_voice", "af_heart"))
-                        audio = KOKORO.synthesize(text, voice_used, speed)
-                        engine_used = "kokoro"
-                    except Exception as kokoro_error:
-                        raise RuntimeError(f"Google Cloud unavailable ({google_error}); Kokoro fallback unavailable ({kokoro_error})") from google_error
+                audio = GOOGLE_CLOUD.synthesize(text, voice_used, speed)
             else:
-                voice_used = str(request.get("kokoro_voice", "af_heart"))
                 audio = KOKORO.synthesize(text, voice_used, speed)
-                engine_used = "kokoro"
-            self.send_response(200)
-            self.send_header("Content-Type", "audio/wav")
-            self.send_header("X-TTS-Engine", engine_used)
-            self.send_header("X-TTS-Voice", voice_used)
-            if fallback_reason:
-                self.send_header("X-TTS-Fallback", "Kokoro")
-                self.send_header("X-TTS-Fallback-Reason", fallback_reason[:500])
-            self.send_header("Content-Length", str(len(audio)))
-            self.end_headers()
-            self.wfile.write(audio)
-        except Exception as error:
-            self.send_json({"error": str(error)}, status=503)
+        except Exception:
+            self.send_json({"error": f"{engine} speech is unavailable. Check the selected engine's installation and configuration."}, status=503)
+            return
+        self.send_payload(audio, "audio/wav", headers={"X-TTS-Engine": engine, "X-TTS-Voice": voice_used})
 
     def send_json(self, value: dict[str, object], status: int = 200) -> None:
-        payload = json.dumps(value).encode("utf-8")
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(payload)))
-        self.end_headers()
-        self.wfile.write(payload)
+        self.send_payload(json.dumps(value).encode("utf-8"), "application/json", status)
+
+    def send_payload(self, payload: bytes, content_type: str, status: int = 200, headers: dict | None = None) -> None:
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(payload)))
+            for name, value in (headers or {}).items():
+                self.send_header(name, value)
+            self.end_headers()
+            self.wfile.write(payload)
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            pass  # The user stopped speech or replaced the utterance.
 
 
 def main() -> None:
@@ -191,8 +215,8 @@ def main() -> None:
     args = parser.parse_args()
     handler = functools.partial(AACRequestHandler, directory=str(APP_DIR))
     server = http.server.ThreadingHTTPServer(("127.0.0.1", args.port), handler)
-    url = f"http://127.0.0.1:{args.port}/index.html"
-    print(f"Math AAC is running at {url}")
+    url = f"http://127.0.0.1:{args.port}/index.html?v=22"
+    print(f"Math AAC: {url}\nPress Ctrl+C to stop.")
     if not args.no_browser:
         threading.Timer(0.3, lambda: webbrowser.open(url)).start()
     try:
