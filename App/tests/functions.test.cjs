@@ -101,7 +101,7 @@ function ui(storage = new Map(), bootApp = false) {
   const tabs = { basic: { dataset: { subtab: 'basic' } }, functions: { dataset: { subtab: 'functions' } } };
   elements['#function-name'].value = 'f'; elements['#function-parameters'].value = 'x';
   elements['#math'].classList.active = true; elements['#functions'].classList.active = true;
-  const context = vm.createContext({ AACFunctions: { Calculator }, lastResult: '',
+  const context = vm.createContext({ setTimeout: () => 1, clearTimeout() {}, AACFunctions: { Calculator }, lastResult: '',
     navigator: {}, speechSynthesis: { getVoices: () => [] },
     selectTab() { elements['#math'].classList.active = true; },
     selectSubtab(button) { for (const name of ['basic', 'functions']) elements['#' + name].classList.active = name === button.dataset.subtab; },
@@ -110,7 +110,9 @@ function ui(storage = new Map(), bootApp = false) {
     localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) } });
   context.window = context;
   if (bootApp) vm.runInContext(fs.readFileSync(path.join(__dirname, '../app.js'), 'utf8'), context);
-  vm.runInContext(fs.readFileSync(path.join(__dirname, '../functions-ui.js'), 'utf8'), context);
+  context.module = { exports: {} };
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '../functions.js'), 'utf8'), context);
+  context.module.exports.initializeFunctions();
   const enter = text => { elements['#display'].value = text; elements['#display'].handlers.keydown({ key: 'Enter', preventDefault() {} }); };
   return { context, elements, enter };
 }
@@ -213,4 +215,41 @@ test('unavailable or corrupt storage does not disable calculation', () => {
   assert.match(screen.elements['#status'].textContent, /this session/);
   screen.enter('f(3)');
   assert.equal(screen.elements['#display'].value, '9');
+});
+
+test('MODE changes calculator trig units while graph compilation stays in radians', () => {
+  const { context, enter, elements: e } = ui();
+  context.toggleCalculatorMode(); enter('sin(30)');
+  assert.equal(e['#display'].value, '0.5');
+  enter('asin(0.5)'); assert.equal(e['#display'].value, '30');
+  const c = context.mathCalculator;
+  assert.ok(Math.abs(c.compile('sin(x)', ['x'])({ x: Math.PI / 2 }) - 1) < 1e-12);
+  context.toggleCalculatorMode(); enter('sin(pi/2)'); assert.equal(e['#display'].value, '1');
+});
+
+test('sign toggle handles expressions, selections and an empty display', () => {
+  const { context, elements: e } = ui();
+  const field = e['#display'];
+  field.value = '2+3'; context.toggleCalculatorSign(); context.evaluate(); assert.equal(field.value, '-5');
+  context.toggleCalculatorSign(); context.evaluate(); assert.equal(field.value, '5');
+  field.value = '2+3'; field.setSelectionRange(2, 3); context.toggleCalculatorSign(); context.evaluate(); assert.equal(field.value, '-1');
+  field.value = ''; context.toggleCalculatorSign(); assert.equal(field.value, '-');
+  context.toggleCalculatorSign(); assert.equal(field.value, '');
+});
+
+test('integer results keep all safe digits and invalid compiled variables are rejected', () => {
+  const { enter, elements: e } = ui();
+  enter('1085929983159840'); assert.equal(e['#display'].value, '1085929983159840');
+  const c = new Calculator();
+  assert.throws(() => c.compile('x', ['x'])({ x: Infinity }));
+  assert.throws(() => c.compile('x', ['x'])({ x: NaN }));
+});
+
+test('equation history keeps successful expressions and excludes errors', () => {
+  const { context, enter, elements: e } = ui();
+  context.showEquationHistory(); assert.match(e['#status'].textContent, /empty/);
+  enter('2+3'); enter('7*8'); enter('1/0');
+  context.showEquationHistory();
+  assert.match(e['#status'].textContent, /7\*8 = 56; 2\+3 = 5/);
+  assert.doesNotMatch(e['#status'].textContent, /1\/0/);
 });

@@ -603,3 +603,61 @@ button {
 	transform: translateY(-1px);
 }
 :root{--bg:#eaf5fc;--panel:#fff;--ink:#162434;--muted:#496276;--blue:#1269d3;--soft:#cfe8ff;--green:#d9f4df;--lav:#e4e0ff;--line:#b7cfe3;--font:18px}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:'Trebuchet MS','Segoe UI',sans-serif;font-size:var(--font)}button,input,select{font:inherit}button{cursor:pointer}.topbar{display:flex;align-items:center;justify-content:space-between;background:var(--blue);color:white;padding:18px 28px}.brand{font-size:30px;font-weight:800;letter-spacing:1px}.tagline{color:#e7f4ff;font-size:15px;margin-top:2px}.app-shell{display:grid;grid-template-columns:220px minmax(560px,1fr) 220px;gap:12px;max-width:1500px;margin:12px auto;padding:0 12px;min-height:calc(100vh - 104px)}.rail,.workspace,.card,.subpanel{background:var(--panel);border:1px solid var(--line);border-radius:10px}.rail{padding:18px 12px}.rail h2,.subpanel h2,.card h2{font-size:20px;margin:0 0 12px;color:var(--blue)}.rail-help,.muted{color:var(--muted);font-size:14px;line-height:1.4}.stack{display:grid;gap:8px;margin:14px 0}.workspace{padding:12px;min-width:0}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tab,.subtab{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:8px 8px 0 0;padding:13px 20px;font-weight:800}.tab{flex:1;min-width:130px}.tab.active,.subtab.active{background:var(--soft);color:var(--blue);border-color:#83bdf0}.display-row{display:grid;grid-template-columns:minmax(180px,1fr) auto auto auto;gap:8px;padding:10px 0}.display-row input{min-width:0;border:2px solid #83bdf0;border-radius:8px;padding:14px 16px;font-size:24px;color:var(--ink);background:#fff}.button,.key{border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);padding:12px 14px;min-height:50px;font-weight:700;transition:background .15s,transform .15s}.button:hover,.key:hover{background:var(--soft);transform:translateY(-1px)}.button.blue{background:var(--soft);color:var(--blue);border-color:#83bdf0}.button.green,.key.action{background:var(--green);border-color:#83c991}.button.wide{width:100%;margin-top:12px}.button.small{padding:8px 12px}.header-speak{background:white;color:var(--blue);border:0}.subject{display:none}.subject.active{display:block}.sub-tabs{margin:4px 0 10px}.subtab{padding:10px 16px;font-size:15px}.subpanel{display:none;padding:14px;min-height:535px}.subpanel.active{display:block}.math-panel{background:#fff}.basic-grid{display:grid;grid-template-columns:repeat(4,minmax(100px,1fr));gap:10px}.key{min-height:82px;font-size:24px;display:flex;align-items:center;justify-content:center;text-align:center}.key.enter{background:var(--lav);border-color:#aaa0ed;color:#403894}.button-grid{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:12px}.button-grid .button{min-height:82px;font-size:18px;background:var(--soft);color:var(--blue)}.card{padding:22px;min-height:420px}.communication-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.communication-grid .button-grid{grid-template-columns:repeat(3,1fr)}label{display:block;font-weight:700;margin:14px 0 6px;color:var(--muted)}.card input,.card select,.settings-card input[type=range]{width:100%;padding:13px;border:2px solid var(--line);border-radius:7px;background:#fff;color:var(--ink)}.result{margin-top:18px;white-space:pre-line;font-size:20px;line-height:1.6;padding:16px;background:var(--bg);border-radius:8px;min-height:100px}.element-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:7px}.element-grid .button{min-height:74px;padding:6px;font-size:16px;background:var(--soft);color:var(--blue)}.section-title{margin-top:30px!important}.status{color:var(--muted);font-size:14px;line-height:1.45;margin-top:24px}.check{display:flex;gap:8px;align-items:center;margin-top:18px}.check input{width:auto}.settings-card{max-width:760px}@media(max-width:1050px){.app-shell{grid-template-columns:180px minmax(450px,1fr) 180px}.rail{padding:12px 8px}.tab{padding:11px 8px;font-size:15px}}@media(max-width:780px){.app-shell{display:block}.rail{margin-bottom:10px}.right-rail{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.right-rail h2,.right-rail .status{grid-column:1/-1}.display-row{grid-template-columns:1fr 1fr}.display-row input{grid-column:1/-1}.basic-grid{grid-template-columns:repeat(2,1fr)}.button-grid,.communication-grid{grid-template-columns:1fr 1fr}.element-grid{grid-template-columns:repeat(3,1fr)}.key{min-height:68px}.topbar{padding:14px 18px}.brand{font-size:24px}}
+/* Math tools reuse the app's existing buttons, cards, colors, and type. */
+#math .math-tool-card { min-height: 0; padding: 18px; }
+#math .math-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 14px; }
+#math [hidden] { display: none !important; }
+#math .math-actions { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-top: 14px; }
+#math .math-tool-card input, #math .math-tool-card select { min-width: 0; }
+#math .result { overflow-wrap: anywhere; }
+#math button[aria-pressed="true"] { outline: 2px solid var(--blue); outline-offset: 2px; }
+#graph-canvas { display: block; width: 100%; margin-top: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+#graph-canvas text { fill: var(--ink); font: 14px 'Segoe UI', sans-serif; }
+#graph-canvas .graph-frame { fill: var(--panel); stroke: var(--line); }
+#graph-canvas .graph-grid { stroke: var(--line); stroke-width: 1; }
+#graph-canvas .graph-axis { stroke: var(--ink); stroke-width: 1.5; }
+#graph-canvas .graph-curve { stroke: var(--blue); stroke-width: 2.5; stroke-linejoin: round; }
+@media (max-width: 480px) { #math .math-fields { grid-template-columns: 1fr; } }
+
+/* Editable mathematical notation; all field controls stay inside Calculus. */
+#math .calculator-live-result { display: block; padding: 10px 12px; margin: 0 0 10px; background: var(--bg); border-radius: 8px; color: var(--ink); overflow-wrap: anywhere; }
+#calculus .integral-editor {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 20px 8px;
+	margin: 16px 0;
+	border-bottom: 2px solid var(--line);
+	background: var(--panel);
+}
+#calculus .integral-editor:focus-within { border-bottom-color: var(--blue); }
+#calculus .integral-operator { display: flex; align-items: center; flex: 0 0 auto; }
+#calculus .integral-sign { font: 108px/1.15 'Cambria Math', 'Times New Roman', serif; color: var(--ink); }
+#calculus #integral-bounds { display: grid; grid-template-rows: 44px 28px 44px; width: 82px; margin-left: -2px; }
+#calculus .integral-editor input {
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	padding: 8px;
+	background: var(--bg);
+	color: var(--ink);
+	min-height: 44px;
+	font-family: 'Cambria Math', 'Times New Roman', serif;
+	font-size: 25px;
+}
+#calculus .integral-editor input:focus { outline: 2px solid var(--blue); outline-offset: 2px; background: var(--panel); }
+#calculus .integral-editor .integral-slot { grid-column: 1; font-size: 20px; text-align: center; width: 100%; }
+#calculus .integral-upper { grid-row: 1; }
+#calculus .integral-lower { grid-row: 3; }
+#calculus .integral-integrand { flex: 1 1 100px; min-width: 0; }
+#calculus .integral-differential { display: flex; align-items: center; gap: 4px; font: italic 28px 'Cambria Math', 'Times New Roman', serif; }
+#calculus .integral-differential input { width: 60px; text-align: center; }
+#calculus .integral-slot-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+#calculus .integral-field-tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+#calculus .integral-field-tabs .button { min-height: 48px; padding: 10px 6px; font-size: 15px; }
+@media (max-width: 480px) {
+	#calculus .math-tool-card { padding: 10px; }
+	#calculus .integral-editor { gap: 7px; padding-inline: 0; }
+	#calculus #integral-bounds { width: 58px; }
+	#calculus .integral-differential input { width: 44px; }
+	#calculus .integral-field-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

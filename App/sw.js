@@ -1,6 +1,6 @@
 // Cache the app shell so the AAC and offline Kokoro workflows remain available offline.
-const CACHE_NAME = 'math-aac-v20-function-controls';
-const APP_ASSETS = ['./', './index.html', './styles.css?v=15', './app.js?v=20', './functions.js?v=1', './functions-ui.js?v=2', './manifest.json'];
+const CACHE_NAME = 'math-aac-v26-calculus-keypad';
+const APP_ASSETS = ['./', './index.html', './styles.css?v=26', './app.js?v=26', './functions.js?v=26', './manifest.json'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_ASSETS)));
@@ -8,8 +8,7 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)))));
-  self.clients.claim();
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('math-aac-') && key !== CACHE_NAME).map(key => caches.delete(key)))).then(() => self.clients.claim()));
 });
 
 self.addEventListener('fetch', event => {
@@ -27,7 +26,7 @@ self.addEventListener('fetch', event => {
   }
   event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
     const copy = response.clone();
-    caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+    if (response.ok) event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy)));
     return response;
   })));
 });

@@ -2,6 +2,7 @@
 (function () {
   'use strict';
   const calculator = new AACFunctions.Calculator();
+  window.mathCalculator = calculator;
   const input = document.querySelector('#display');
   const statusArea = document.querySelector('#status');
   const storageKey = 'math-aac-functions-v1';

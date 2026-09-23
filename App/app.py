@@ -169,7 +169,9 @@ class AACRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header("X-TTS-Voice", voice_used)
             if fallback_reason:
                 self.send_header("X-TTS-Fallback", "Kokoro")
-                self.send_header("X-TTS-Fallback-Reason", fallback_reason[:500])
+                # SDK errors can contain newlines and Unicode; HTTP headers cannot.
+                reason = " ".join(fallback_reason.splitlines())[:500]
+                self.send_header("X-TTS-Fallback-Reason", reason.encode("latin-1", errors="replace").decode("latin-1"))
             self.send_header("Content-Length", str(len(audio)))
             self.end_headers()
             self.wfile.write(audio)
@@ -192,7 +194,7 @@ def main() -> None:
     args = parser.parse_args()
     handler = functools.partial(AACRequestHandler, directory=str(APP_DIR))
     server = http.server.ThreadingHTTPServer(("127.0.0.1", args.port), handler)
-    url = f"http://127.0.0.1:{args.port}/index.html"
+    url = f"http://127.0.0.1:{args.port}/index.html?v=26"
     print(f"Math AAC is running at {url}")
     if not args.no_browser:
         threading.Timer(0.3, lambda: webbrowser.open(url)).start()
