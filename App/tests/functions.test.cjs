@@ -140,8 +140,6 @@ test('page initializes without Chemistry and existing math buttons still use the
   const { context, elements: e, enter } = ui(new Map(), true);
   assert.equal(e['#chemistry'], undefined);
   assert.equal(e['#quick-phrases'].children.length, 7);
-  assert.equal(typeof e['#theme-select'].onchange, 'function');
-  assert.equal(typeof e['#size-range'].oninput, 'function');
   e['#functions'].classList.active = false; e['#basic'].classList.active = true;
   vm.runInContext("append('2'); append('+'); append('3'); window.evaluate();", context);
   assert.equal(e['#display'].value, '5');

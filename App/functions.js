@@ -502,6 +502,7 @@
       const end = field.selectionEnd ?? start;
       field.setRangeText(text, start, end, 'end');
       if (insideParentheses) field.setSelectionRange(start + text.length - 1, start + text.length - 1);
+      if (window.sharedMath) window.sharedMath.changed(field);
       field.focus();
     }
     function selected(id = 'saved-function') {
@@ -520,13 +521,18 @@
       : Number.isSafeInteger(result.value) ? String(result.value) : String(Number(result.value.toPrecision(12)));
     window.previewCalculator = () => {
       if (!get('math').classList.contains('active')) return;
+      window.calculatorAccess?.refresh();
+      if (window.calculatorAccess && !get('calculator-preview').checked) { liveResult.textContent = 'Press Solve when you are ready. Your entry will stay available.'; return; }
       if (!input.value.trim()) { liveResult.textContent = 'Enter an expression to see its solution.'; return; }
       try {
+        const published = window.sharedMath?.current();
+        if (published) { liveResult.textContent = published.text; return; }
+        if (window.sharedMath?.target()) { liveResult.textContent = 'Editing ' + get('math-input-target').selectedOptions[0].textContent + '. Press Solve to calculate the complete expression.'; return; }
         const result = calculator.preview(input.value);
         liveResult.textContent = result.kind === 'definition'
           ? result.definition.source + ' — press ENTER to save, then enter a value such as ' + result.definition.name + '(3).'
           : '= ' + formatResult(result);
-      } catch (error) { liveResult.textContent = error.message; }
+      } catch (error) { liveResult.textContent = window.calculatorAccess?.friendlyError(error) || error.message; }
     };
     let previewTimer;
     window.scheduleCalculatorPreview = () => {
@@ -535,10 +541,12 @@
     };
     input.addEventListener('input', window.scheduleCalculatorPreview);
     window.evaluate = function () {
+      const undoPoint = window.sharedMath?.checkpoint();
       clearTimeout(previewTimer);
       try {
-        const expression = input.value;
-        const result = calculator.evaluate(input.value);
+        const expression = window.sharedMath?.current()?.source || input.value;
+        const result = calculator.evaluate(expression);
+        window.sharedMath?.choose(null);
         if (result.kind === 'definition') {
           const definition = result.definition;
           let saved = true;
@@ -556,17 +564,32 @@
           history.unshift(expression + ' = ' + formatted);
           if (history.length > 20) history.pop();
           report('Result: ' + formatted);
+          const tree = parse(calculatorSource(expression));
+          if (tree.type === 'call' && isIntegral(tree.name)) {
+            const notation = tree.args.length === 4
+              ? `∫ from ${format(tree.args[2])} to ${format(tree.args[3])} of (${format(tree.args[0])}) d${format(tree.args[1])} ≈ ${formatted}`
+              : `∫ (${format(tree.args[0])}) d${format(tree.args[1])} = ${formatted}`;
+            window.sharedMath?.publish(notation, expression, result.kind === 'symbolic' ? formatted.replace(/ \+ C$/, '') : formatted);
+            window.calculatorAccess?.solved(notation.split(tree.args.length === 4 ? ' ≈ ' : ' = ')[0], formatted, tree.args.length === 4);
+          } else window.calculatorAccess?.solved(expression, formatted);
         }
       } catch (error) {
-        report('Could not evaluate: ' + error.message);
+        window.sharedMath?.discardCheckpoint(undoPoint);
+        window.calculatorAccess?.editing();
+        report('Could not evaluate: ' + (window.calculatorAccess?.friendlyError(error) || error.message));
       }
     };
     window.showEquationHistory = () => report(history.length ? 'Recent equations: ' + history.join('; ') : 'Equation history is empty.');
     window.toggleCalculatorMode = () => {
       calculator.angleMode = calculator.angleMode === 'radians' ? 'degrees' : 'radians';
+      if (get('calculator-angle')) {
+        get('calculator-angle').textContent = calculator.angleMode === 'radians' ? 'Radians' : 'Degrees';
+        get('calculator-angle').setAttribute('aria-label', 'Angle mode: ' + calculator.angleMode + '. Press to change.');
+      }
       report('Calculator angle mode: ' + calculator.angleMode + '. Graphs and integrals use radians.');
     };
     window.toggleCalculatorSign = () => {
+      window.sharedMath?.checkpoint();
       const start = input.selectionStart ?? 0, end = input.selectionEnd ?? input.value.length;
       const selected = start !== end;
       const source = (selected ? input.value.slice(start, end) : input.value).trim();
@@ -575,10 +598,11 @@
       if (selected) input.setRangeText(replacement, start, end, 'end');
       else input.value = replacement;
       input.focus();
+      window.sharedMath?.changed();
       window.scheduleCalculatorPreview();
     };
     input.addEventListener('keydown', event => {
-      if (event.key === 'Enter') { event.preventDefault(); window.evaluate(); }
+      if (event.key === 'Enter') { event.preventDefault(); (window.sharedMath?.solve || window.evaluate)(); }
     });
     document.querySelector('#show-functions').addEventListener('click', () => {
       const definitions = [...calculator.definitions.values()];
@@ -602,15 +626,18 @@
       return true;
     };
     window.backspaceMath = () => {
+      if (window.sharedMath) { window.sharedMath.erase(); return true; }
       if (!get('math').classList.contains('active') || !get('basic').classList.contains('active')) return false;
       const end = input.selectionEnd ?? input.value.length;
       const start = input.selectionStart ?? end;
       input.setRangeText('', start === end ? Math.max(0, start - 1) : start, end, 'end');
       input.focus();
+      window.sharedMath?.changed();
       window.scheduleCalculatorPreview();
       return true;
     };
     get('save-function').addEventListener('click', () => {
+      window.sharedMath?.checkpoint();
       input.value = `${get('function-name').value.trim()}(${get('function-parameters').value.trim()})=${rule.value.trim()}`;
       window.evaluate();
     });
@@ -629,6 +656,7 @@
     function useInCalculator(id) {
       const definition = selected(id);
       if (!definition) return;
+      window.sharedMath?.choose(null);
       openMath('basic');
       // A completed definition/result is replaced; unfinished arithmetic keeps its insertion point.
       if (input.value.includes('=') || input.value === lastResult) input.value = '';
@@ -639,7 +667,7 @@
     get('calculator-insert-function').addEventListener('click', () => useInCalculator('calculator-function'));
     get('insert-function').addEventListener('click', () => {
       const definition = selected();
-      if (definition) insertAt(keypadInput, definition.name + '()', true);
+      if (definition) insertAt(window.sharedMath ? input : keypadInput, definition.name + '()', true);
     });
     function evaluateSelected(compose) {
       const outer = selected();
@@ -672,6 +700,11 @@
       button.className = 'key' + (['Backspace', 'Clear', 'Variables'].includes(value) ? ' secondary' : '');
       button.textContent = value;
       button.addEventListener('click', () => {
+        if (window.sharedMath) {
+          if (value === 'Clear' || value === 'Backspace') window.sharedMath.erase(value === 'Clear');
+          else window.sharedMath.edit(value === 'Variables' ? get('function-parameters').value : value);
+          return;
+        }
         if (value === 'Clear') { keypadInput.value = ''; keypadInput.focus(); }
         else if (value === 'Backspace') {
           const end = keypadInput.selectionEnd ?? keypadInput.value.length;
@@ -704,6 +737,7 @@
       field.focus();
     }
     let definite = true;
+    window.integralSource = () => `integral(${value('integral-expression')},${value('integral-variable')}${definite ? `,(${value('integral-lower')}),(${value('integral-upper')})` : ''})`;
     let integralTimer;
     const integralFields = ['lower', 'upper', 'expression', 'variable'];
     function focusIntegralField(part) {
@@ -746,7 +780,12 @@
     get('integral-indefinite').onclick = () => setIntegralMode(false);
     get('integral-definite').onclick = () => setIntegralMode(true);
     function solveIntegral(quiet = false) {
+      const undoPoint = !quiet ? window.sharedMath?.checkpoint() : null;
       clearTimeout(integralTimer);
+      if (quiet && window.calculatorAccess && !get('calculator-preview').checked) {
+        get('integral-result').textContent = 'Press Solve when you are ready.';
+        return null;
+      }
       try {
       const required = definite ? integralFields : ['expression', 'variable'];
       for (const part of required) {
@@ -762,10 +801,17 @@
         ? `∫ from ${value('integral-lower')} to ${value('integral-upper')} of (${expression}) d${v} ≈ ${formatted(result.value)}`
         : `∫ (${expression}) d${v} = ${result.value}`;
       get('integral-result').textContent = message;
-      if (!quiet) setStatus(message);
+      if (!quiet) {
+        const answer = result.kind === 'symbolic' ? result.value.replace(/ \+ C$/, '') : formatted(result.value);
+        window.sharedMath?.publish(message, source, answer);
+        window.calculatorAccess?.solved(message.split(definite ? ' ≈ ' : ' = ')[0], definite ? formatted(result.value) : result.value, definite);
+        setStatus(message);
+      }
       return result;
       } catch (error) {
-        get('integral-result').textContent = 'Could not calculate: ' + error.message;
+        window.sharedMath?.discardCheckpoint(undoPoint);
+        get('integral-result').textContent = 'Could not calculate: ' + (window.calculatorAccess?.friendlyError(error) || error.message);
+        if (!quiet) window.calculatorAccess?.editing();
         if (!quiet) setStatus(get('integral-result').textContent);
         return null;
       }
@@ -787,7 +833,7 @@
     };
     window.openIntegral = () => {
       selectTab('math'); selectSubtab(document.querySelector('[data-subtab="calculus"]'));
-      const source = value('display');
+      const source = window.sharedMath?.current()?.source || value('display');
       if (source) {
         try {
           const tree = parse(calculatorSource(source));
@@ -815,7 +861,8 @@
       button.onclick = () => {
         greekVariable = letter;
         get('greek-function').textContent = 'Define with ' + letter;
-        insert(get('display'), letter);
+        if (window.sharedMath) window.sharedMath.edit(letter);
+        else insert(get('display'), letter);
       };
       get('greek-letters').append(button);
     }
@@ -955,12 +1002,18 @@
       for (const button of grid.children) {
         const key = button.dataset.toolKey;
         button.onclick = () => {
-          if (key === 'ENTER') { get(action).click(); return; }
+          if (key === 'ENTER') { if (window.sharedMath) window.sharedMath.solve(); else get(action).click(); return; }
           if (key === 'Previous' || key === 'Next') {
             const fields = [...get(panel).querySelectorAll('input')].filter(field => !field.closest('[hidden]'));
-            const index = fields.indexOf(target), direction = key === 'Next' ? 1 : -1;
+            const selected = window.sharedMath?.target() || target;
+            const index = fields.indexOf(selected), direction = key === 'Next' ? 1 : -1;
             const next = fields[(index + direction + fields.length) % fields.length];
             if (next) { next.focus(); next.select(); }
+            return;
+          }
+          if (window.sharedMath) {
+            if (key === 'CLEAR' || key === 'DEL') window.sharedMath.erase(key === 'CLEAR');
+            else window.sharedMath.edit(key === 'x²' ? 'x^2' : key);
             return;
           }
           if (target.closest('[hidden]')) {
@@ -979,7 +1032,19 @@
     refreshFunctions();
   }
 
-  Object.assign(api, { indefinite, definite, series, counting, name, initializeFunctions, initializeMathTools });
+  function speechSource(source) {
+    let text = source;
+    try {
+      const tree = parse(calculatorSource(source));
+      if (tree.type === 'call' && isIntegral(tree.name) && [2, 4].includes(tree.args.length)) {
+        text = '∫ ' + (tree.args.length === 4 ? `from ${format(tree.args[2])} to ${format(tree.args[3])} of ` : '')
+          + `(${format(tree.args[0])}) d${format(tree.args[1])}`;
+      }
+    } catch (_) { /* Messages and solved equations remain speakable. */ }
+    if (text.includes('∫')) text = text.replace(/\bd([A-Za-zαβγδθλμσφω][A-Za-z0-9_]*)(?=\s*(?:[=≈]|$))/g, ' with respect to $1 ');
+    return text.replace(/≈/g, ' approximately equals ');
+  }
+  Object.assign(api, { indefinite, definite, series, counting, name, speechSource, initializeFunctions, initializeMathTools });
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;
   } else {

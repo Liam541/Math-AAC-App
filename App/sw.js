@@ -1,6 +1,6 @@
 // Cache the app shell so the AAC and offline Kokoro workflows remain available offline.
-const CACHE_NAME = 'math-aac-v26-calculus-keypad';
-const APP_ASSETS = ['./', './index.html', './styles.css?v=26', './app.js?v=26', './functions.js?v=26', './manifest.json'];
+const CACHE_NAME = 'math-aac-v29-cleanup';
+const APP_ASSETS = ['./', './index.html', './styles.css?v=29', './app.js?v=29', './functions.js?v=29', './shared-input.js?v=29', './calculator-access.js?v=29', './manifest.json'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_ASSETS)));

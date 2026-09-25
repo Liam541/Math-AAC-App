@@ -123,7 +123,7 @@ function screen() {
   const tab = new Element();
   const c = new api.Calculator(); c.define('f(t)=t^2+1'); c.define('h(x,y)=x+y');
   let selectedTab, selectedSubtab;
-  const context = vm.createContext({ setTimeout: () => 1, clearTimeout() {}, AACFunctions: api, AACMathTools: math, mathCalculator: c,
+  const context = vm.createContext({ setTimeout: () => 1, clearTimeout() {}, AACFunctions: api, mathCalculator: c,
     document: { getElementById: id => elements[id], querySelector: selector => selector.includes('data-subtab') ? tab : null,
       querySelectorAll: () => [], createElement: () => new Element(), createElementNS: () => new Element() },
     Option: function (label, value) { this.textContent = label; this.value = value; },

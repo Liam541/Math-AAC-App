@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import functools
 import http.server
 import io
 import json
+import math
 import os
 import pathlib
 import sys
@@ -66,8 +68,8 @@ class GoogleCloudEngine:
             method="POST",
         )
         try:
-            response = urllib.request.urlopen(request, timeout=20)
-            return __import__("base64").b64decode(json.loads(response.read())["audioContent"])
+            with urllib.request.urlopen(request, timeout=20) as response:
+                return base64.b64decode(json.loads(response.read())["audioContent"])
         except urllib.error.HTTPError as error:
             detail = error.read().decode("utf-8", errors="replace")
             raise RuntimeError(f"Google Cloud API error {error.code}: {detail}") from error
@@ -103,17 +105,6 @@ class KokoroEngine:
 KOKORO = KokoroEngine()
 GOOGLE_CLOUD = GoogleCloudEngine()
 
-GOOGLE_VOICES = {
-    "en-US-Chirp3-HD-Achernar": "English US - Chirp 3 HD Achernar",
-    "en-US-Neural2-F": "English US - Neural Female",
-    "en-US-Neural2-C": "English US - Neural Male",
-    "en-US-Wavenet-F": "English US - Wavenet Female",
-    "en-US-Wavenet-D": "English US - Wavenet Male",
-    "en-GB-Neural2-A": "English UK - Neural Female",
-    "en-GB-Neural2-B": "English UK - Neural Male",
-}
-
-
 class AACRequestHandler(http.server.SimpleHTTPRequestHandler):
     # Serves the PWA files and exposes speech/status endpoints for the browser frontend.
     def do_GET(self) -> None:
@@ -140,11 +131,29 @@ class AACRequestHandler(http.server.SimpleHTTPRequestHandler):
             return
         try:
             length = int(self.headers.get("Content-Length", "0"))
+            if not 0 < length <= 65536:
+                raise ValueError("Speech requests must contain 1 to 65,536 bytes.")
             request = json.loads(self.rfile.read(length))
-            text = str(request.get("text", ""))
+            if not isinstance(request, dict):
+                raise ValueError("Speech requests must be JSON objects.")
+            text = request.get("text", "")
+            if not isinstance(text, str) or not text.strip():
+                raise ValueError("Enter text to speak.")
             engine = str(request.get("engine", "google"))
             speed = float(request.get("speed", 1.0))
             volume = int(request.get("volume", 100))
+            if engine not in {"google", "kokoro"}:
+                raise ValueError("Choose the google or kokoro speech engine.")
+            if not math.isfinite(speed) or speed <= 0 or not 0 <= volume <= 100:
+                raise ValueError("Use a positive finite speed and a volume from 0 to 100.")
+            for key in ("voice", "kokoro_voice"):
+                voice = request.get(key, "")
+                if not isinstance(voice, str) or any(ord(character) < 32 or ord(character) > 126 for character in voice):
+                    raise ValueError("Voice names must use printable ASCII characters.")
+        except (ValueError, TypeError, OverflowError) as error:
+            self.send_json({"error": str(error)}, status=400)
+            return
+        try:
             engine_used = engine
             voice_used = str(request.get("voice", "en-US-Chirp3-HD-Achernar"))
             fallback_reason = ""
@@ -194,7 +203,7 @@ def main() -> None:
     args = parser.parse_args()
     handler = functools.partial(AACRequestHandler, directory=str(APP_DIR))
     server = http.server.ThreadingHTTPServer(("127.0.0.1", args.port), handler)
-    url = f"http://127.0.0.1:{args.port}/index.html?v=26"
+    url = f"http://127.0.0.1:{args.port}/index.html?v=29"
     print(f"Math AAC is running at {url}")
     if not args.no_browser:
         threading.Timer(0.3, lambda: webbrowser.open(url)).start()

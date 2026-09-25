@@ -41,6 +41,14 @@ The Math Board provides a touch-based interface for entering:
 
 Different mathematical boards can be selected depending on what the user needs to enter.
 
+The TTS bar is shared by every math board. Tap a tool field or choose it in **Editing** to link it to the bar, then switch tabs to borrow Greek letters, operators, or functions. Typing, selection replacement, Clear, and Backspace update the linked field. Choose **TTS bar / calculator** to return to independent bar entry. **Copy bar to…** transfers existing bar content into any math input without retyping.
+
+**Solve** calculates the selected tool. Integral results appear in the bar with the full integral and answer, ready for **Speak**. **Use answer** makes a numeric result available for the next expression; **Use antiderivative (C = 0)** copies a particular antiderivative for reuse. For example, select Integral · expression, enter `θ^2` with the Greek and Basic boards, set the variable to `θ` and bounds to `0` and `3`, then Solve to display and speak the integral with answer `9`. Functions, discrete results, and graph summaries also have **Send … to TTS bar** controls.
+
+The calculator also keeps **Problem** and **Answer** together, with separate **Speak problem**, **Speak answer**, and **Speak both** buttons. **Stop speaking** cancels speech that is playing or still loading. **Undo** restores recent typing, keypad edits, cleared entries, field copies, and calculator results. The **Editing** label and outlined field show where input goes; **Return to…** brings that field back into view.
+
+**More functions** opens additional keys without changing the main keypad. It also offers labeled fraction and power slots and an optional integral guide through expression, variable, and bounds. **Calculator preferences and phrases** includes plain-language key labels, extra key spacing, a sidebar-free math workspace, reduced button movement, and a live-preview toggle. The text-size and appearance link opens the existing settings. Preferences and five customizable math phrases are saved locally when available; speaking these phrases does not replace the equation. These controls support individual preferences and do not assume a user's mathematical ability.
+
 ### Text-to-Speech
 
 Entered responses can be read aloud using text-to-speech functionality.
@@ -141,6 +149,19 @@ The goal is not simply to provide a calculator, but to allow the user to **commu
 ---
 
 ## Technical Approach
+
+### Current source layout
+
+The browser loads `app.js` (boards, navigation, settings, speech), `functions.js` (the shared math engine and tool interfaces), `shared-input.js` (linked editing and Undo), and `calculator-access.js` (calculator accessibility controls). `index.html` contains the layout, and `styles.css` contains the styling. Older standalone copies of the function and math-tool implementations have been removed; update the shared implementation in `functions.js`.
+
+Run locally with `python App/app.py --no-browser`. Run checks with:
+
+```text
+node --test --experimental-test-isolation=none App/tests/functions.test.cjs App/tests/math-tools.test.cjs App/tests/runtime.test.cjs
+python -B -m unittest discover -s App/tests -p "*_test.py"
+```
+
+The full-page runtime tests load scripts in the order declared in `index.html`. When changing cached frontend assets, update their version in `index.html`, `sw.js`, and the startup URL in `app.py` together.
 
 ### Software
 
