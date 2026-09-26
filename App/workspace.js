@@ -12,6 +12,7 @@
     'series-lower': 'Series · first index', 'series-upper': 'Series · last index',
     'count-n': 'Counting · total items', 'count-r': 'Counting · selected items',
     'set-a': 'Set A', 'set-b': 'Set B', 'graph-expression': 'Graph · expression',
+    'logic-p-text': 'Logic · statement p', 'logic-q-text': 'Logic · statement q',
     'graph-xmin': 'Graph · x minimum', 'graph-xmax': 'Graph · x maximum',
     'graph-ymin': 'Graph · y minimum', 'graph-ymax': 'Graph · y maximum', 'graph-at': 'Graph · evaluate at'
   };
@@ -23,6 +24,7 @@
     const state = {
       values: Object.fromEntries(['display', ...Object.keys(fields)].map(id => [id, get(id).value])),
       target: target?.id, publication, start: bar.selectionStart, end: bar.selectionEnd,
+      mode: bar.dataset.entryMode,
       answer: window.mathCalculator.answer,
       definitions: window.mathCalculator.serialize(),
       solution: window.calculatorAccess?.snapshot()
@@ -47,6 +49,7 @@
     bar.value = state.values.display;
     bar.setSelectionRange(state.start ?? bar.value.length, state.end ?? bar.value.length);
     publication = state.publication;
+    window.setEntryMode(state.mode || 'math');
     window.mathCalculator.answer = state.answer;
     if (state.definitions !== window.mathCalculator.serialize()) window.restoreFunctions(state.definitions);
     get('shared-use-answer').hidden = publication?.answer === undefined;
@@ -54,11 +57,30 @@
     window.calculatorAccess?.restore(state.solution);
     restoring = false;
     get('calculator-undo').disabled = !undoStack.length;
-    bar.focus(); window.scheduleCalculatorPreview(); setStatus('Previous math entry restored.');
+    bar.focus(); window.scheduleCalculatorPreview(); setStatus('Previous entry restored.');
   }
   const notify = field => field.dispatchEvent(new Event('input', { bubbles: true }));
   function invalidate() { publication = null; get('shared-use-answer').hidden = true; }
   function selection(from, to) { to.setSelectionRange(from.selectionStart ?? from.value.length, from.selectionEnd ?? from.value.length); }
+  window.setEntryMode = mode => {
+    bar.dataset.entryMode = mode;
+    const message = mode === 'message';
+    if (message) {
+      window.calculatorAccess?.editing();
+      get('calculator-result').textContent = 'Use Space between words. Speak reads the whole message.';
+    }
+    bar.placeholder = target ? 'Input ' + fields[target.id].toLowerCase() : message ? 'Type words here, then Speak' : 'Input math to solve or speak';
+    bar.setAttribute('aria-label', target ? 'Editing ' + fields[target.id] : message ? 'Message to speak' : 'Math and speech bar');
+    for (const [id, selected] of [['spell-message-mode', message], ['spell-math-mode', !message]]) {
+      get(id).classList.toggle('active', selected); get(id).setAttribute('aria-pressed', String(selected));
+    }
+    get('spell-help').textContent = message
+      ? 'Build words in the bar. Use Space between words, then Speak to read the whole message.'
+      : 'Letters go to the selected math field or expression. Choose Write a message for everyday speech.';
+    window.scheduleCalculatorPreview();
+  };
+  get('spell-message-mode').onclick = () => { checkpoint(); choose(null); window.setEntryMode('message'); bar.focus(); };
+  get('spell-math-mode').onclick = () => { checkpoint(); window.setEntryMode('math'); bar.focus(); };
   function choose(field) {
     const editingField = field || target;
     invalidate();
@@ -67,8 +89,7 @@
     get('field-context').hidden = !field;
     for (const id of Object.keys(fields)) get(id).classList.toggle('linked-math-field', id === field?.id);
     get('editing-location').textContent = 'Editing: ' + (field ? fields[field.id] : 'TTS bar / calculator');
-    bar.placeholder = field ? 'Input ' + fields[field.id].toLowerCase() : 'Input math to solve or speak';
-    bar.setAttribute('aria-label', field ? 'Editing ' + fields[field.id] : 'Math and speech bar');
+    window.setEntryMode(field ? (field.id.startsWith('logic-') ? 'message' : 'math') : bar.dataset.entryMode || 'math');
     get('return-to-field').hidden = !field;
     get('return-to-field').textContent = field ? 'Return to ' + fields[field.id].split(' · ')[0].toLowerCase() : 'Return to field';
     if (editingField) window.calculatorAccess?.editing();
@@ -121,6 +142,8 @@
   get('finish-field').onclick = () => { choose(null); bar.focus(); };
   function solve() {
     const id = target?.id || '';
+    if (id.startsWith('logic-')) { get('discrete-calculate').click(); return; }
+    if (bar.dataset.entryMode === 'message') { setStatus('Choose Speak to read your message, or Letters for math to calculate.'); return; }
     if (!id && current() && !current().source) { setStatus('Choose a field or enter a math expression in the bar to solve.'); return; }
     if (id.startsWith('template-')) get('calculator-insert-template').click();
     else if (id.startsWith('integral-')) window.solveIntegral();
@@ -142,9 +165,10 @@
   window.sharedMath = {
     edit, erase, changed, solve, choose, current, checkpoint, discardCheckpoint, undo,
     target: () => target,
-    publish(text, source, answer) {
+    publish(text, source, answer, spoken) {
       choose(null); bar.value = text; bar.setSelectionRange(text.length, text.length);
-      publication = { text, source, answer };
+      window.setEntryMode('math');
+      publication = { text, source, answer, spoken };
       get('shared-use-answer').hidden = answer === undefined;
       get('shared-use-answer').textContent = /\+ C$/.test(text) ? 'Use antiderivative (C = 0)' : 'Use answer';
       window.scheduleCalculatorPreview();
@@ -154,10 +178,13 @@
     const result = get(button.dataset.resultToBar);
     button.onclick = () => {
       if (result.dataset.valid !== 'true') { setStatus('Calculate a valid result before sending it to the bar.'); return; }
-      checkpoint(); window.sharedMath.publish(result.textContent); window.calculatorAccess?.editing();
+      checkpoint(); window.sharedMath.publish(result.textContent, undefined, undefined, result.dataset.spoken); window.calculatorAccess?.editing();
     };
     get('discrete').querySelectorAll('input, select').forEach(field => {
-      for (const event of ['input', 'change']) field.addEventListener(event, () => { result.dataset.valid = 'false'; });
+      for (const event of ['input', 'change']) field.addEventListener(event, () => {
+        result.dataset.valid = 'false';
+        result.textContent = 'Values changed. Choose Calculate for a new result.';
+      });
     });
   });
   choose(null);

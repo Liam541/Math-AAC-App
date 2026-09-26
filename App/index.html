@@ -4,7 +4,7 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#1269d3"><meta name="mobile-web-app-capable" content="yes">
   <title>Math AAC Workspace</title>
-  <link rel="manifest" href="manifest.json"><link rel="stylesheet" href="styles.css?v=32">
+  <link rel="manifest" href="manifest.json"><link rel="stylesheet" href="styles.css?v=33">
 </head>
 <body>
   <header class="topbar">
@@ -77,17 +77,23 @@
             <div class="button-row"><button class="button green" id="integral-calculate">Solve integral</button><button class="button" data-tool-display="integral-expression">Use bar</button><button class="button" id="integral-example">Example</button></div>
             <output class="tool-result" id="integral-result" role="status">Tap a field to edit.</output>
           </section>
-          <section class="subpanel" id="greek" aria-label="Greek letters">
-            <div class="symbol-grid greek-grid" id="greek-letters"></div>
-            <div class="button-row"><button class="button" id="greek-function">Define with theta</button><button class="button" id="greek-define">Save definition in bar</button></div>
+          <section class="subpanel" id="greek" aria-label="Greek symbols in math">
+            <nav class="local-tabs" aria-label="Greek symbols"><button class="button active" aria-pressed="true" data-page="greek-common">Common uses</button><button class="button" aria-pressed="false" data-page="greek-more">More letters</button></nav>
+            <div class="tool-page active" id="greek-common"><div class="symbol-grid greek-grid" id="greek-letters"></div></div>
+            <div class="tool-page" id="greek-more"><div class="symbol-grid greek-grid" id="greek-more-letters"></div></div>
+            <p class="hint" id="greek-help">Choose a symbol to insert it. Use an example to try it in a calculation.</p>
+            <div class="button-row"><button class="button blue" id="greek-example">Try circle example</button><button class="button" id="greek-meaning">Speak meaning</button></div>
           </section>
           <section class="subpanel" id="discrete" aria-label="Discrete mathematics">
-            <label for="discrete-operation">Operation</label><select id="discrete-operation"><option value="sum">Finite sum</option><option value="product">Finite product</option><option value="choose">Combinations</option><option value="permute">Permutations</option><option value="union">Set union</option><option value="intersection">Set intersection</option><option value="difference">Set difference</option><option value="and">Logic AND</option><option value="or">Logic OR</option><option value="implies">Implication</option></select>
-            <div id="discrete-series"><div class="field-row"><div><label for="series-expression">Term</label><input id="series-expression" value="k^2"></div><div><label for="series-variable">Index variable</label><input id="series-variable" value="k"></div></div><div class="field-row"><div><label for="series-lower">First index</label><input id="series-lower" value="1"></div><div><label for="series-upper">Last index</label><input id="series-upper" value="5"></div></div></div>
-            <div id="discrete-counting" class="field-row" hidden><div><label for="count-n">Total (n)</label><input id="count-n" value="5"></div><div><label for="count-r">Selected (r)</label><input id="count-r" value="2"></div></div>
-            <div id="discrete-sets" hidden><label for="set-a">Set A (comma separated)</label><input id="set-a" value="1, 2, 3"><label for="set-b">Set B</label><input id="set-b" value="2, 3, 4"></div>
-            <div id="discrete-logic" class="field-row" hidden><div><label for="logic-p">Statement p</label><select id="logic-p"><option value="true">True</option><option value="false">False</option></select></div><div><label for="logic-q">Statement q</label><select id="logic-q"><option value="true">True</option><option value="false">False</option></select></div></div>
-            <div class="button-row"><button class="button green" id="discrete-calculate">Calculate</button><button class="button" data-result-to-bar="discrete-result">Send result to bar</button></div><output class="tool-result" id="discrete-result" role="status">Choose an operation.</output>
+            <nav class="local-tabs" aria-label="Discrete task"><button class="button" data-discrete-group="counting" aria-pressed="false">Counting</button><button class="button" data-discrete-group="sets" aria-pressed="false">Sets</button><button class="button" data-discrete-group="logic" aria-pressed="false">Logic</button><button class="button active" data-discrete-group="series" aria-pressed="true">Sequences</button></nav>
+            <div class="field-row"><div><label for="discrete-operation">What do you want to find?</label><select id="discrete-operation"><option value="sum">Add terms · sum Σ</option><option value="product">Multiply terms · product Π</option></select></div><button class="button" id="discrete-example">Try example</button></div>
+            <p class="hint" id="discrete-help">Add terms of a sequence. The first and last index are included.</p>
+            <div id="discrete-series"><div class="field-row"><div><label for="series-expression">Rule for each term</label><input id="series-expression" value="k^2"></div><div><label for="series-variable">Index letter</label><input id="series-variable" value="k"></div></div><div class="field-row"><div><label for="series-lower">Start at</label><input id="series-lower" value="1"></div><div><label for="series-upper">End at</label><input id="series-upper" value="5"></div></div></div>
+            <div id="discrete-counting" class="field-row" hidden><div><label for="count-n">Available items (n)</label><input id="count-n" value="5" inputmode="numeric"></div><div><label for="count-r">Items to choose (r)</label><input id="count-r" value="2" inputmode="numeric"></div></div>
+            <div id="discrete-sets" class="field-row" hidden><div><label for="set-a">Set A · separate with commas</label><input id="set-a" value="1, 2, 3"></div><div><label for="set-b">Set B · separate with commas</label><input id="set-b" value="2, 3, 4"></div></div>
+            <div id="discrete-logic" hidden><div class="field-row"><div><label for="logic-p-text">Statement p</label><input id="logic-p-text" value="I have a pencil"></div><div><label for="logic-q-text">Statement q</label><input id="logic-q-text" value="I have paper"></div></div><div class="field-row"><div><label for="logic-p">Is p true?</label><select id="logic-p"><option value="true">True</option><option value="false">False</option></select></div><div><label for="logic-q">Is q true?</label><select id="logic-q"><option value="true">True</option><option value="false">False</option></select></div></div></div>
+            <div class="button-row"><button class="button green" id="discrete-calculate">Calculate</button><button class="button" data-result-to-bar="discrete-result">Send result to bar</button><button class="button blue" id="discrete-speak">Speak result</button></div>
+            <output class="tool-result" id="discrete-result" role="status">Choose a task, enter values, then Calculate.</output>
           </section>
           <section class="subpanel" id="functions" aria-label="Named functions">
             <nav class="local-tabs" aria-label="Function task"><button class="button active" aria-pressed="true" data-page="function-define">Define</button><button class="button" aria-pressed="false" data-page="function-evaluate">Evaluate</button><button class="button" aria-pressed="false" data-page="function-compose">Compose</button></nav>
@@ -112,12 +118,17 @@
         </div>
       </div>
     </section>
-    <section class="subject" id="spell" aria-label="Letters"><div class="letter-grid" id="letter-buttons"></div></section>
+    <section class="subject" id="spell" aria-label="AAC spellboard">
+      <div class="local-tabs" role="group" aria-label="Letter destination"><button class="button active" id="spell-message-mode" aria-pressed="true">Write a message</button><button class="button" id="spell-math-mode" aria-pressed="false">Letters for math</button></div>
+      <p class="hint" id="spell-help">Build words in the bar. Use Space between words, then Speak to read the whole message.</p>
+      <div class="letter-grid" id="letter-buttons"></div>
+      <div class="button-row spell-actions"><button class="button" data-spell=" ">Space</button><button class="button" data-spell="," aria-label="Comma">,</button><button class="button" data-spell="." aria-label="Period">.</button><button class="button" data-spell="?" aria-label="Question mark">?</button><button class="button" data-spell="'" aria-label="Apostrophe">'</button><button class="button" data-action="backspace">Delete</button></div>
+    </section>
     <section class="subject" id="appearance" aria-label="Appearance"><div class="settings-grid"><div class="form-card"><label for="theme-select">Color theme</label><select id="theme-select"><option value="light">Bright blue</option><option value="high">High contrast</option><option value="warm">Warm</option></select><label for="size-range">Text size</label><input id="size-range" type="range" min="16" max="24" value="18"></div><div class="form-card"><label class="check"><input type="checkbox" id="calculator-still" checked> Keep buttons still</label><label class="check"><input type="checkbox" id="calculator-preview" checked> Show answers while typing</label><p class="hint">Large keys stay in the same place on every math tool.</p></div></div></section>
     <section class="subject" id="settings" aria-label="Speech settings"><div class="settings-grid"><div class="form-card"><label for="kokoro-voice">Local neural voice (Kokoro)</label><select id="kokoro-voice"><option value="af_heart">Heart</option><option value="af_bella">Bella</option><option value="af_sarah">Sarah</option><option value="am_adam">Adam</option><option value="am_michael">Michael</option><option value="bf_emma">Emma</option><option value="bf_isabella">Isabella</option><option value="bm_george">George</option><option value="bm_lewis">Lewis</option></select><label for="voice-select">Installed device fallback voice</label><select id="voice-select"></select></div><div class="form-card"><label for="rate-range">Speech speed</label><input id="rate-range" type="range" min="100" max="240" value="175"><label for="volume-range">Volume</label><input id="volume-range" type="range" min="30" max="100" value="100"><button class="button blue" data-action="test-voice">Test voice</button><p class="engine-status hint"></p></div></div></section>
     <p class="status" id="status" role="status" aria-live="polite">Ready.</p>
   </main>
-  <script src="app.js?v=32"></script><script>initializeSettings();</script>
-  <script src="functions.js?v=32"></script><script src="workspace.js?v=32"></script>
+  <script src="app.js?v=33"></script><script>initializeSettings();</script>
+  <script src="functions.js?v=33"></script><script src="workspace.js?v=33"></script>
 </body>
 </html>

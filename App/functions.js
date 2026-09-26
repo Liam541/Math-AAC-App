@@ -526,6 +526,7 @@
       : Number.isSafeInteger(result.value) ? String(result.value) : String(Number(result.value.toPrecision(12)));
     window.previewCalculator = () => {
       if (!get('math').classList.contains('active')) return;
+      if (input.dataset.entryMode === 'message') { liveResult.textContent = 'Choose Speak to read your message.'; return; }
       if (window.calculatorAccess?.refresh()) return;
       if (window.calculatorAccess && !get('calculator-preview').checked) { liveResult.textContent = 'Press Solve when you are ready. Your entry will stay available.'; return; }
       if (!input.value.trim()) { liveResult.textContent = 'Enter an expression to see its solution.'; return; }
@@ -552,6 +553,7 @@
         const expression = source ?? (window.sharedMath?.current()?.source || input.value);
         const result = calculator.evaluate(expression);
         window.sharedMath?.choose(null);
+        window.setEntryMode?.('math');
         if (result.kind === 'definition') {
           const definition = result.definition;
           input.value = definition.source;
@@ -608,7 +610,7 @@
       window.scheduleCalculatorPreview();
     };
     input.addEventListener('keydown', event => {
-      if (event.key === 'Enter') { event.preventDefault(); (window.sharedMath?.solve || window.evaluate)(); }
+      if (event.key === 'Enter') { event.preventDefault(); if (input.dataset.entryMode === 'message' && !window.sharedMath?.target()) window.speak(); else (window.sharedMath?.solve || window.evaluate)(); }
     });
     document.querySelector('#show-functions').addEventListener('click', () => {
       const definitions = [...calculator.definitions.values()];
@@ -830,52 +832,140 @@
       solveIntegral(true);
     };
     document.querySelector('[data-subtab="calculus"]').addEventListener('click', () => solveIntegral(true));
-    let greekVariable = 'θ';
-    for (const [letter, name] of Object.entries(greek)) {
+    const symbolUses = {
+      'π': { name: 'pi', label: 'Circles', help: 'Pi is about 3.14159. Use 2 × π × radius to find the distance around a circle.', example: 'Try circle example' },
+      'θ': { name: 'theta', label: 'Angles', help: 'Theta often names an angle. Use it as a variable in a function, such as sin(θ).', example: 'Try angle function', parameters: 'θ', rule: 'sin(θ)', args: 'pi/2' },
+      'μ': { name: 'mu', label: 'Population mean', help: 'Mu often represents a population mean. Subtract the mean to find how far a value is from it.', example: 'Try mean example', parameters: 'x,μ', rule: 'x-μ', args: '12,10' },
+      'σ': { name: 'sigma', label: 'Standard deviation', help: 'Lowercase sigma often represents population standard deviation. A z-score is (value − mean) / standard deviation.', example: 'Try z-score example', parameters: 'x,μ,σ', rule: '(x-μ)/σ', args: '12,10,2' }
+    };
+    let selectedSymbol = 'π';
+    function insertSymbol(letter, info) {
+      selectedSymbol = letter;
+      get('greek-help').textContent = info.help; get('greek-example').textContent = info.example;
+      window.setEntryMode?.('math');
+      if (window.sharedMath) window.sharedMath.edit(letter); else insert(get('display'), letter);
+    }
+    for (const [letter, info] of Object.entries(symbolUses)) {
       const button = document.createElement('button'); button.className = 'button';
-      button.textContent = letter + ' · ' + name; button.setAttribute('aria-label', name);
+      button.textContent = `${letter} · ${info.name}\n${info.label}`;
+      button.setAttribute('aria-label', `Insert ${info.name}. ${info.label}.`);
+      button.onclick = () => insertSymbol(letter, info); get('greek-letters').append(button);
+    }
+    for (const [symbol, op, label] of [['Σ', 'sum', 'Add a sequence'], ['Π', 'product', 'Multiply a sequence']]) {
+      const button = document.createElement('button'); button.className = 'button'; button.textContent = `${symbol} · ${op}\n${label}`;
+      button.setAttribute('aria-label', `Open ${op} in Discrete. ${label}.`);
       button.onclick = () => {
-        greekVariable = letter;
-        get('greek-function').textContent = 'Define with ' + letter;
-        if (window.sharedMath) window.sharedMath.edit(letter);
-        else insert(get('display'), letter);
+        selectTab('math'); selectSubtab(document.querySelector('[data-subtab="discrete"]'));
+        window.selectDiscreteOperation(op); get('series-expression').focus();
       };
       get('greek-letters').append(button);
     }
-    get('greek-define').onclick = () => window.evaluate();
-    get('greek-function').onclick = () => {
-      get('function-parameters').value = greekVariable;
-      selectTab('math'); selectSubtab(document.querySelector('[data-subtab="functions"]'));
-      window.showToolPage?.('function-define');
-      get('function-rule').focus();
-      setStatus('Write a rule using ' + greekVariable + ', then save the function.');
+    for (const [letter, name] of Object.entries(greek)) {
+      const info = symbolUses[letter] || { name, help: `${name} can name a variable. Its meaning depends on the problem. Define a function to calculate with it.`, example: `Try ${name} function`, parameters: letter, rule: `${letter}^2`, args: '3' };
+      symbolUses[letter] = info;
+      const button = document.createElement('button'); button.className = 'button'; button.textContent = `${letter} · ${name}`;
+      button.onclick = () => insertSymbol(letter, info); get('greek-more-letters').append(button);
+    }
+    get('greek-help').textContent = symbolUses['π'].help;
+    get('greek-meaning').onclick = () => window.speak(window.mathSpeechText?.(symbolUses[selectedSymbol].help) || symbolUses[selectedSymbol].help, { literal: true });
+    get('greek-example').onclick = () => {
+      window.sharedMath?.checkpoint();
+      const info = symbolUses[selectedSymbol];
+      if (selectedSymbol === 'π') {
+        window.sharedMath?.choose(null); window.setEntryMode?.('math');
+        get('display').value = '2*pi*3'; get('display').setSelectionRange(6, 6);
+        selectSubtab(document.querySelector('[data-subtab="basic"]')); window.scheduleCalculatorPreview?.();
+        setStatus('Circle with radius 3: 2 × pi × 3. Change the radius or choose Solve.');
+      } else {
+        // Prepare a draft without replacing any saved function.
+        let name = selectedSymbol === 'σ' ? 'z' : 'f';
+        while (calculator.definitions.has(name)) name += 'g';
+        get('function-name').value = name; get('function-parameters').value = info.parameters;
+        get('function-rule').value = info.rule; get('function-arguments').value = selectedSymbol === 'θ' && calculator.angleMode === 'degrees' ? '90' : info.args;
+        selectSubtab(document.querySelector('[data-subtab="functions"]')); window.showToolPage?.('function-define'); get('function-rule').focus();
+        setStatus(`Example ready. Save function, then open Evaluate. Example input: ${get('function-arguments').value}.`);
+      }
+    };
+    const discreteTasks = {
+      sum: { group: 'series', label: 'Add terms · sum Σ', help: 'Add terms of a sequence. The first and last index are included.' },
+      product: { group: 'series', label: 'Multiply terms · product Π', help: 'Multiply terms of a sequence. The first and last index are included.' },
+      choose: { group: 'counting', label: 'Choose a group · combinations', help: 'Order does not matter. Choose different items without repeating any item.' },
+      permute: { group: 'counting', label: 'Arrange in order · permutations', help: 'Order matters. Arrange different items without repeating any item.' },
+      union: { group: 'sets', label: 'All items · union A ∪ B', help: 'Keep items in either set, with no repeats. Enter words or numbers, separated by commas.' },
+      intersection: { group: 'sets', label: 'Shared items · intersection A ∩ B', help: 'Keep only items in both sets. Match the spelling and capitalization of each item.' },
+      difference: { group: 'sets', label: 'Only in A · difference A ∖ B', help: 'Keep items in A that are not in B. A minus B is different from B minus A.' },
+      and: { group: 'logic', label: 'Both true · p AND q', help: 'AND is true only when both statements are true. Choose each statement’s truth value.' },
+      or: { group: 'logic', label: 'At least one true · p OR q', help: 'OR is true when either statement is true, including when both are true.' },
+      implies: { group: 'logic', label: 'If p, then q · implication', help: 'This rule is false only when p is true and q is false. It does not prove that p causes q.' }
     };
     function discreteMode() {
-      const op = value('discrete-operation');
-      const groups = { series: ['sum', 'product'], counting: ['choose', 'permute'], sets: ['union', 'intersection', 'difference'], logic: ['and', 'or', 'implies'] };
-      for (const [group, ops] of Object.entries(groups)) get('discrete-' + group).hidden = !ops.includes(op);
+      const task = discreteTasks[value('discrete-operation')]; if (!task) return;
+      for (const group of ['series', 'counting', 'sets', 'logic']) get('discrete-' + group).hidden = group !== task.group;
+      document.querySelectorAll('[data-discrete-group]').forEach(button => {
+        const active = button.dataset.discreteGroup === task.group;
+        button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active));
+      });
       if (window.sharedMath?.target()?.closest('[hidden]')) window.sharedMath.choose(null);
-      get('discrete-result').textContent = 'Enter values for ' + get('discrete-operation').selectedOptions[0].textContent + '.';
+      get('discrete-help').textContent = task.help;
+      get('discrete-result').textContent = 'Enter values, then Calculate. Try example fills in a practice problem.';
       get('discrete-result').dataset.valid = 'false';
     }
+    window.selectDiscreteOperation = op => {
+      const task = discreteTasks[op]; if (!task) return;
+      const select = get('discrete-operation'); select.replaceChildren();
+      for (const [key, entry] of Object.entries(discreteTasks)) if (entry.group === task.group) select.add(new Option(entry.label, key));
+      select.value = op; discreteMode();
+    };
+    document.querySelectorAll('[data-discrete-group]').forEach(button => button.onclick = () => window.selectDiscreteOperation(Object.keys(discreteTasks).find(op => discreteTasks[op].group === button.dataset.discreteGroup)));
     get('discrete-operation').onchange = discreteMode;
+    get('discrete-example').onclick = () => {
+      window.sharedMath?.checkpoint();
+      const op = value('discrete-operation'), group = discreteTasks[op].group;
+      const examples = {
+        series: { 'series-expression': 'k', 'series-variable': 'k', 'series-lower': '1', 'series-upper': '4' },
+        counting: { 'count-n': '5', 'count-r': '2' },
+        sets: { 'set-a': 'apple, banana', 'set-b': 'banana, orange' },
+        logic: { 'logic-p-text': 'I have a pencil', 'logic-q-text': 'I have paper', 'logic-p': 'true', 'logic-q': 'false' }
+      };
+      for (const [id, text] of Object.entries(examples[group])) get(id).value = text;
+      discreteMode(); get(Object.keys(examples[group])[0]).focus();
+      const context = group === 'counting' ? op === 'choose' ? 'Choose 2 people from 5 for a team.' : 'Choose a first-place and second-place winner from 5 people.'
+        : group === 'sets' ? 'Compare two lists of fruit.' : group === 'series' ? 'Use the numbers 1, 2, 3, and 4.' : 'A pencil is available. Paper is not available.';
+      get('discrete-help').textContent = context + ' ' + discreteTasks[op].help;
+      setStatus('Example ready. Change the values or choose Calculate.');
+    };
     get('discrete-calculate').onclick = () => run('discrete-result', () => {
       const op = value('discrete-operation');
-      if (['sum', 'product'].includes(op)) return `${op === 'sum' ? 'Σ' : 'Π'} (${value('series-expression')}), ${value('series-variable')} = ${value('series-lower')} to ${value('series-upper')}: ${formatted(math.series(calculator, value('series-expression'), value('series-variable'), numeric('series-lower'), numeric('series-upper'), op === 'product'))}`;
+      const finish = (text, spoken) => { get('discrete-result').dataset.spoken = spoken; return text; };
+      if (['sum', 'product'].includes(op)) {
+        const result = formatted(math.series(calculator, value('series-expression'), value('series-variable'), numeric('series-lower'), numeric('series-upper'), op === 'product'));
+        const rule = window.mathSpeechText?.(value('series-expression')) || value('series-expression');
+        return finish(`${op === 'sum' ? 'Σ' : 'Π'} (${value('series-expression')}), ${value('series-variable')} = ${value('series-lower')} to ${value('series-upper')}: ${result}`,
+          `The ${op} of ${rule}, for ${value('series-variable')} from ${value('series-lower')} to ${value('series-upper')}, is ${result}.`);
+      }
       if (['choose', 'permute'].includes(op)) {
-        const result = math.counting(numeric('count-n'), numeric('count-r'), op === 'permute');
-        return `${value('count-n')} ${op === 'choose' ? 'choose' : 'permute'} ${value('count-r')} = ${formatted(result)}${Number.isSafeInteger(result) ? '' : ' (approximate)'}`;
+        const result = math.counting(numeric('count-n'), numeric('count-r'), op === 'permute'), approximate = Number.isSafeInteger(result) ? '' : 'approximately ';
+        return finish(`${value('count-n')} ${op === 'choose' ? 'choose' : 'permute'} ${value('count-r')} = ${formatted(result)}${approximate ? ' (approximate)' : ''}`,
+          `There are ${approximate}${formatted(result)} ways to ${op === 'choose' ? 'choose' : 'arrange'} ${value('count-r')} items from ${value('count-n')}, without repetition. Order ${op === 'choose' ? 'does not matter' : 'matters'}.`);
       }
       if (['union', 'intersection', 'difference'].includes(op)) {
-        const elements = id => new Set(value(id).split(',').map(s => s.trim()).filter(Boolean));
+        const elements = id => new Set(value(id).replace(/^\{(.*)\}$/, '$1').split(',').map(s => s.trim()).filter(Boolean));
         const a = elements('set-a'), b = elements('set-b');
         const result = op === 'union' ? [...new Set([...a, ...b])] : [...a].filter(x => op === 'intersection' ? b.has(x) : !b.has(x));
-        return `A ${op === 'union' ? '∪' : op === 'intersection' ? '∩' : '∖'} B = {${result.join(', ')}}`;
+        const description = op === 'union' ? 'Items in either set' : op === 'intersection' ? 'Items in both sets' : 'Items in A but not B';
+        return finish(`A ${op === 'union' ? '∪' : op === 'intersection' ? '∩' : '∖'} B = {${result.join(', ')}}`, `${description}: ${result.length ? result.join(', ') : 'none. The result is the empty set'}.`);
       }
-      const p = value('logic-p') === 'true', q = value('logic-q') === 'true';
-      const result = op === 'and' ? p && q : op === 'or' ? p || q : !p || q;
-      return `${p} ${op === 'and' ? '∧' : op === 'or' ? '∨' : '→'} ${q} = ${result}`;
+      const p = value('logic-p') === 'true', q = value('logic-q') === 'true', result = op === 'and' ? p && q : op === 'or' ? p || q : !p || q;
+      const statementP = value('logic-p-text') || 'statement p', statementQ = value('logic-q-text') || 'statement q';
+      const sentence = op === 'implies' ? `If ${statementP}, then ${statementQ}` : `${statementP} ${op} ${statementQ}`;
+      return finish(`${p} ${op === 'and' ? '∧' : op === 'or' ? '∨' : '→'} ${q} = ${result}. ${sentence}.`, `${statementP} is ${p}. ${statementQ} is ${q}. The statement, ${sentence}, is ${result}.`);
     });
+    get('discrete-speak').onclick = () => {
+      const result = get('discrete-result');
+      if (result.dataset.valid !== 'true') { setStatus('Calculate a valid result before speaking it.'); return; }
+      window.speak(result.dataset.spoken, { literal: true });
+    };
+    discreteMode();
     document.querySelectorAll('[data-tool-display]').forEach(button => button.onclick = () => {
       if (button.dataset.toolDisplay === 'integral-expression') { window.openIntegral(); return; }
       get(button.dataset.toolDisplay).value = get('display').value; get(button.dataset.toolDisplay).focus();

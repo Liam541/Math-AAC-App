@@ -139,7 +139,7 @@ test('display integration saves definitions, evaluates Enter, updates history an
 test('page initializes without Chemistry and existing math buttons still use the calculator', () => {
   const { context, elements: e, enter } = ui(new Map(), true);
   assert.equal(e['#chemistry'], undefined);
-  assert.equal(e['#letter-buttons'].children.length, 28);
+  assert.equal(e['#letter-buttons'].children.length, 26);
   e['#functions'].classList.active = false; e['#basic'].classList.active = true;
   vm.runInContext("append('2'); append('+'); append('3'); window.evaluate();", context);
   assert.equal(e['#display'].value, '5');

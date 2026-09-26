@@ -30,7 +30,11 @@ function browser({ storage = null, speech = true } = {}) {
       if (this === elements['#calculus'] && selector === 'input') return ['lower', 'upper', 'expression', 'variable'].map(part => elements['#integral-' + part]);
       return [];
     }
-    closest(selector) { return selector === '.subject' ? elements['#math'] : null; }
+    closest(selector) {
+      if (selector === '.subject') return elements['#math'];
+      if (selector === '.subpanel') return elements[this.id.startsWith('function-') ? '#functions' : this.id.startsWith('greek-') ? '#greek' : '#graphing'];
+      return null;
+    }
     insertAdjacentHTML() {}
     focus() { this.handlers.focus?.forEach(handler => handler()); }
     select() { this.selectionStart = 0; this.selectionEnd = this.value.length; this.dispatchEvent({ type: 'select' }); }
@@ -401,7 +405,7 @@ test('Settings and Appearance stay accessible without breaking a linked math fie
     assert.equal(e['#' + tab].classList.contains('active'), true);
     assert.equal(b.context.sharedMath.target().id, 'integral-expression');
   }
-  assert.equal(e['#letter-buttons'].children.length, 28);
+  assert.equal(e['#letter-buttons'].children.length, 26);
 });
 
 test('touch template fields restore the original destination on insertion', () => {
@@ -491,4 +495,76 @@ test('speech explains comparisons, superscripts, scientific notation and empty i
     assert.equal(JSON.parse(request.options.body).text.replace(/\s+/g, ' ').trim(), expected);
     request.resolve(b.response); await pending;
   }
+});
+
+test('AAC spells complete sentences and submits one unchanged utterance to either voice engine', async () => {
+  const b = browser(); b.boot(); const e = b.elements;
+  b.context.selectTab('spell');
+  const sentence = "i need a pen, please. i'm ready!";
+  for (const letter of sentence) b.listeners.click[0]({ target: { closest: () => ({ dataset: { spell: letter } }) } });
+  assert.equal(e['#display'].value, sentence);
+  assert.equal(b.requests.length, 0, 'Letter presses must not speak individually');
+  const pending = b.context.speak();
+  assert.equal(b.requests.length, 1);
+  assert.equal(JSON.parse(b.requests[0].options.body).text, sentence);
+  b.requests[0].reject(Error('use device voice')); await pending;
+  assert.deepEqual(b.fallback, [sentence]);
+  b.context.selectTab('settings');
+  const repeat = b.context.speak();
+  assert.equal(JSON.parse(b.requests[1].options.body).text, sentence);
+  b.requests[1].resolve(b.response); await repeat;
+});
+
+test('letter borrowing retains the math destination and message mode detaches without changing the field', async () => {
+  const b = browser(); b.boot(); const e = b.elements;
+  e['#integral-expression'].focus(); e['#integral-expression'].select();
+  b.context.selectTab('spell');
+  b.listeners.click[0]({ target: { closest: () => ({ dataset: { spell: 'x' } }) } });
+  assert.equal(e['#integral-expression'].value, 'x');
+  assert.equal(e['#display'].dataset.entryMode, 'math');
+  e['#spell-message-mode'].click(); b.context.sharedMath.erase(true);
+  b.context.sharedMath.edit('I got an A!');
+  assert.equal(e['#integral-expression'].value, 'x');
+  assert.equal(b.context.sharedMath.target(), null);
+  const pending = b.context.speak();
+  assert.equal(JSON.parse(b.requests[0].options.body).text, 'I got an A!');
+  b.requests[0].resolve(b.response); await pending;
+});
+
+test('Greek examples create usable drafts, preserve saved functions, and respect angle mode', () => {
+  const b = browser(); b.boot(); const e = b.elements;
+  b.context.mathCalculator.define('f(x)=x+7');
+  b.context.toggleCalculatorMode();
+  e['#greek-letters'].children.find(button => button.textContent.startsWith('θ')).click();
+  e['#greek-example'].click();
+  assert.equal(e['#function-arguments'].value, '90');
+  assert.notEqual(e['#function-name'].value, 'f');
+  e['#save-function'].click(); e['#evaluate-function'].click();
+  assert.equal(e['#display'].value, '1');
+  assert.equal(b.context.mathCalculator.evaluate('f(1)').value, 8);
+  e['#greek-letters'].children.find(button => button.textContent.startsWith('σ')).click();
+  e['#greek-example'].click(); e['#save-function'].click(); e['#evaluate-function'].click();
+  assert.equal(e['#display'].value, '1');
+  e['#greek-letters'].children.find(button => button.textContent.startsWith('π')).click();
+  e['#greek-example'].click(); b.context.evaluate();
+  assert.ok(Math.abs(Number(e['#display'].value) - 6 * Math.PI) < 1e-9);
+});
+
+test('discrete tasks offer focused choices, usable examples and meaningful result speech', async () => {
+  const b = browser(); b.boot(); const e = b.elements;
+  for (const [op, expected] of [['sum', '10'], ['product', '24'], ['choose', '10'], ['permute', '20'], ['intersection', '{banana}'], ['difference', '{apple}']]) {
+    b.context.selectDiscreteOperation(op); e['#discrete-example'].click(); e['#discrete-calculate'].click();
+    assert.ok(e['#discrete-result'].textContent.includes(expected), op);
+    assert.ok(e['#discrete-operation'].children.length <= 3);
+    assert.equal(e['#discrete-result'].dataset.valid, 'true');
+  }
+  b.context.selectDiscreteOperation('implies'); e['#discrete-example'].click(); e['#discrete-calculate'].click();
+  assert.match(e['#discrete-result'].dataset.spoken, /I have a pencil is true/);
+  assert.match(e['#discrete-result'].dataset.spoken, /is false\.$/);
+  const pending = b.context.speak(e['#discrete-result'].dataset.spoken, { literal: true });
+  assert.match(JSON.parse(b.requests[0].options.body).text, /If I have a pencil, then I have paper/);
+  b.requests[0].resolve(b.response); await pending;
+  b.context.selectDiscreteOperation('choose'); e['#count-r'].value = '6'; e['#discrete-calculate'].click();
+  assert.equal(e['#discrete-result'].dataset.valid, 'false');
+  e['#discrete-speak'].click(); assert.equal(b.requests.length, 1);
 });

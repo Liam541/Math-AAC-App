@@ -26,7 +26,7 @@ function append(value, space = false) {
   window.scheduleCalculatorPreview?.();
 }
 function makeButtons() {
-  for (const letter of 'abcdefghijklmnopqrstuvwxyz, ') {
+  for (const letter of 'abcdefghijklmnopqrstuvwxyz') {
     const button = document.createElement('button');
     button.className = 'button'; button.textContent = letter === ' ' ? 'Space' : letter;
     button.dataset.spell = letter; document.getElementById('letter-buttons').append(button);
@@ -35,7 +35,7 @@ function makeButtons() {
     sets[container.dataset.buttons].forEach(([label, value]) => {
       const button = document.createElement('button');
       button.className = 'button'; button.textContent = label;
-      button.onclick = () => append(value);
+      button.onclick = () => { window.setEntryMode?.('math'); append(value); };
       container.append(button);
     });
   });
@@ -62,6 +62,8 @@ function selectTab(tab) {
     button.classList.toggle('active', selected); button.setAttribute('aria-pressed', String(selected));
   });
   document.querySelectorAll('.subject').forEach(section => section.classList.toggle('active', section.id === tab));
+  if (tab === 'spell' && !window.sharedMath?.target()) window.setEntryMode?.('message');
+  if (tab === 'math' && !window.sharedMath?.target()) window.setEntryMode?.('math');
   window.calculatorAccess?.subjectChanged();
 }
 function selectSubtab(button) {
@@ -86,7 +88,7 @@ document.addEventListener('click', event => {
   if (target.dataset.tab) { selectTab(target.dataset.tab); return; }
   if (target.dataset.page) { showToolPage(target.dataset.page); if (target.hasAttribute('data-plot-return')) document.getElementById('graph-plot').click(); return; }
   if (target.dataset.subtab) { selectSubtab(target); return; }
-  if (target.dataset.value) { append(target.dataset.value); return; }
+  if (target.dataset.value) { window.setEntryMode?.('math'); append(target.dataset.value); return; }
   if (target.dataset.spell !== undefined) { append(target.dataset.spell); return; }
   switch (target.dataset.action) {
     case 'speak': window.speak(); break;
@@ -106,7 +108,7 @@ document.addEventListener('click', event => {
     case 'sign': window.toggleCalculatorSign(); break;
     case 'graph': window.openGraphing(); break;
     case 'history': window.showEquationHistory(); break;
-    case 'test-voice': window.speak('This is your selected voice.'); break;
+    case 'test-voice': window.speak('This is your selected voice.', { literal: true }); break;
   }
 });
 if (speech) speech.onvoiceschanged = loadVoices;
@@ -255,12 +257,7 @@ function initializeSpeech() {
     window.speechSynthesis?.cancel();
     document.querySelector('#status').textContent = 'Speech stopped.';
   };
-  window.speak = async function (text = document.querySelector('#display').value) {
-    if (!text.trim()) { setStatus('Input math or a message in the speech bar first.'); return; }
-    const requestId = ++speechRequest;
-    speechController?.abort();
-    stopCurrentAudio();
-    window.speechSynthesis?.cancel();
+  window.mathSpeechText = text => {
     let spoken = window.AACFunctions?.speechSource(text) || text;
     // Preserve punctuation in AAC messages; pronounce factorial notation after an operand.
     spoken = spoken.replace(/\b(\d+(?:\.\d+)?)[eE]([+-]?\d+)\b/g, '$1 times ten to the power of $2');
@@ -272,6 +269,19 @@ function initializeSpeech() {
         spoken = spoken.replace(new RegExp('\\b' + symbol.slice(0, -1) + '\\s*\\(', 'g'), words);
       } else spoken = spoken.replaceAll(symbol, words);
     }
+    return spoken;
+  };
+  window.speak = async function (text, { literal = false } = {}) {
+    if (text === undefined) {
+      text = window.sharedMath?.current()?.spoken || display.value;
+      literal = display.dataset.entryMode === 'message' || !!window.sharedMath?.current()?.spoken;
+    }
+    if (!text.trim()) { setStatus('Input math or a message in the speech bar first.'); return; }
+    const requestId = ++speechRequest;
+    speechController?.abort();
+    stopCurrentAudio();
+    window.speechSynthesis?.cancel();
+    const spoken = literal ? text : window.mathSpeechText(text);
     document.querySelector('#status').textContent = 'Preparing local speech...';
     const controller = new AbortController();
     speechController = controller;

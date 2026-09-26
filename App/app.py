@@ -164,7 +164,7 @@ def main() -> None:
     threading.Thread(target=KOKORO.warmup, daemon=True).start()
     handler = functools.partial(AACRequestHandler, directory=str(APP_DIR))
     server = http.server.ThreadingHTTPServer(("127.0.0.1", args.port), handler)
-    url = f"http://127.0.0.1:{args.port}/index.html?v=32"
+    url = f"http://127.0.0.1:{args.port}/index.html?v=33"
     print(f"Math AAC is running at {url}")
     if not args.no_browser:
         threading.Timer(0.3, lambda: webbrowser.open(url)).start()
