@@ -12,6 +12,19 @@ spec.loader.exec_module(app)
 
 
 class SpeechEndpointTests(unittest.TestCase):
+    def test_root_and_old_bookmarks_redirect_to_the_only_entry_page(self):
+        for path in ("/", "/index.html", "/index.html?v=29"):
+            handler = app.AACRequestHandler.__new__(app.AACRequestHandler)
+            handler.path = path
+            handler.send_response = Mock()
+            handler.send_header = Mock()
+            handler.end_headers = Mock()
+            handler.do_GET()
+            handler.send_response.assert_called_once_with(302)
+            handler.send_header.assert_called_once_with("Location", "/index%20(1).html")
+        self.assertTrue((Path(__file__).parents[1] / "index (1).html").is_file())
+        self.assertFalse((Path(__file__).parents[1] / "index.html").exists())
+
     def test_invalid_requests_are_rejected_before_calling_speech_engines(self):
         for payload in ([], {"text": ""}, {"text": "hello", "speed": float("nan")},
                         {"text": "hello", "volume": 101}, {"text": "hello", "voice": "bad\r\nheader"}):

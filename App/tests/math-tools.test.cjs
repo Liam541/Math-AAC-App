@@ -117,7 +117,7 @@ function screen() {
     querySelectorAll() { return this.id === 'calculus' ? ['lower', 'upper', 'expression', 'variable'].map(part => elements['integral-' + part]) : []; }
     get selectedOptions() { return [{ textContent: this.value }]; }
   }
-  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '../index (1).html'), 'utf8');
   const elements = Object.fromEntries([...html.matchAll(/id="([^"]+)"/g)].map(m => [m[1], new Element(m[1])]));
   for (const m of html.matchAll(/<input\b[^>]*\bid="([^"]+)"[^>]*value="([^"]*)"/g)) elements[m[1]].value = m[2];
   const tab = new Element();
@@ -148,11 +148,10 @@ test('integral mode switches bounds and calculates through the form', () => {
 test('integral slots support field buttons, bound arrow navigation and targeted touch input', () => {
   const { elements: e, focused } = screen();
   e['integral-calculate'].click(); assert.match(e['integral-result'].textContent, /0\.333333333333/);
-  e['integral-edit-upper'].click();
+  e['integral-upper'].focus();
   assert.equal(focused(), 'integral-upper');
-  assert.equal(e['integral-edit-upper'].attrs['aria-pressed'], 'true');
-  const keypad = e['integral-keypad-host'].children.at(-1);
-  keypad.children.find(key => key.textContent === '7').click();
+  e['integral-upper'].select();
+  e['integral-upper'].setRangeText('7', 0, 1);
   assert.equal(e['integral-upper'].value, '7');
   assert.equal(e['integral-lower'].value, '0');
   assert.equal(e['integral-expression'].value, 'x^2');
@@ -162,7 +161,7 @@ test('integral slots support field buttons, bound arrow navigation and targeted 
   assert.equal(focused(), 'integral-upper');
   e['integral-indefinite'].click();
   assert.equal(focused(), 'integral-expression');
-  assert.equal(e['integral-edit-upper'].hidden, true);
+  assert.equal(e['integral-bounds'].hidden, true);
   e['integral-definite'].click();
   assert.equal(focused(), 'integral-lower');
   assert.equal(e['integral-upper'].value, '7');

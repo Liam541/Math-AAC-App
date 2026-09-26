@@ -4,13 +4,10 @@ const display = document.querySelector('#display');
 const status = document.querySelector('#status');
 const speech = window.speechSynthesis;
 let voices = [], lastResult = '';
-const phrases=['I need help','I have a question',"I'm ready", "I don't understand",'Can you repeat that?','I need more time','Thank you'];
 const sets = {
   algebra:[['x','x'],['y','y'],['a','a'],['b','b'],['=',' = '],['≠',' != '],['<',' < '],['>',' > '],['^','**'],['|x|','abs(']],
-  calculus:[['Integral','']],
-  greek:[['α','α'],['β','β'],['γ','γ'],['δ','δ'],['θ','θ'],['λ','λ'],['μ','μ'],['σ','σ'],['φ','φ'],['ω','ω'],['∧','∧'],['∨','∨'],['∩','∩'],['∪','∪'],['→','→'],['∀','∀'],['∃','∃'],['∈','∈']],
   functions:[['sin','sin('],['cos','cos('],['tan','tan('],['√','sqrt('],['ln','log('],['log₁₀','log10('],['eˣ','exp('],['!','factorial('],['⌈x⌉','ceil('],['⌊x⌋','floor('],['|x|','abs('],['sin⁻¹','asin('],['cos⁻¹','acos('],['tan⁻¹','atan(']],
-  words:[['I','I'],['need','need'],['want','want'],['like','like'],['feel','feel'],['more','more'],['less','less'],['to','to'],['go','go'],['stop','stop'],['because','because'],['today','today']]
+
 };
 function setStatus(message) { status.textContent = message; }
 function append(value, space = false) {
@@ -29,29 +26,16 @@ function append(value, space = false) {
   window.scheduleCalculatorPreview?.();
 }
 function makeButtons() {
-  const quick = document.querySelector('#quick-phrases');
-  phrases.forEach(text => {
+  for (const letter of 'abcdefghijklmnopqrstuvwxyz, ') {
     const button = document.createElement('button');
-    button.className = 'button'; button.textContent = text;
-    button.onclick = () => {
-      window.sharedMath?.checkpoint();
-      window.sharedMath?.choose(null);
-      display.value = text;
-      window.sharedMath?.changed();
-      window.scheduleCalculatorPreview?.();
-      if (document.querySelector('#auto-speak')?.checked !== false) window.speak(text);
-      else setStatus('Phrase selected. Press Speak to read it aloud.');
-    };
-    quick.append(button);
-  });
+    button.className = 'button'; button.textContent = letter === ' ' ? 'Space' : letter;
+    button.dataset.spell = letter; document.getElementById('letter-buttons').append(button);
+  }
   document.querySelectorAll('[data-buttons]').forEach(container => {
     sets[container.dataset.buttons].forEach(([label, value]) => {
       const button = document.createElement('button');
       button.className = 'button'; button.textContent = label;
-      button.onclick = () => {
-        if (container.dataset.buttons === 'calculus') window.openIntegral();
-        else append(value, container.dataset.buttons === 'words');
-      };
+      button.onclick = () => append(value);
       container.append(button);
     });
   });
@@ -72,20 +56,35 @@ function loadVoices() {
   else if (preferred) select.value = preferred.name;
 }
 function selectTab(tab) {
-  if (tab !== 'math') window.sharedMath?.choose(null);
-  document.querySelectorAll('.main-tabs .tab').forEach(button => button.classList.toggle('active', button.dataset.tab === tab));
+
+  document.querySelectorAll('.main-tabs .tab').forEach(button => {
+    const selected = button.dataset.tab === tab;
+    button.classList.toggle('active', selected); button.setAttribute('aria-pressed', String(selected));
+  });
   document.querySelectorAll('.subject').forEach(section => section.classList.toggle('active', section.id === tab));
   window.calculatorAccess?.subjectChanged();
 }
 function selectSubtab(button) {
   const parent = button.closest('.subject');
-  parent.querySelectorAll('.subtab').forEach(item => item.classList.toggle('active', item === button));
+  document.getElementById('math-stage').dataset.panel = button.dataset.subtab;
+  parent.querySelectorAll('.subtab').forEach(item => {
+    item.classList.toggle('active', item === button); item.setAttribute('aria-pressed', String(item === button));
+  });
   parent.querySelectorAll('.subpanel').forEach(panel => panel.classList.toggle('active', panel.id === button.dataset.subtab));
+}
+function showToolPage(id) {
+  const page = document.getElementById(id), panel = page.closest('.subpanel');
+  panel.querySelectorAll('.tool-page').forEach(item => item.classList.toggle('active', item === page));
+  panel.querySelectorAll('[data-page]').forEach(button => {
+    const selected = button.dataset.page === id;
+    button.classList.toggle('active', selected); button.setAttribute('aria-pressed', String(selected));
+  });
 }
 document.addEventListener('click', event => {
   const target = event.target.closest('button');
   if (!target) return;
   if (target.dataset.tab) { selectTab(target.dataset.tab); return; }
+  if (target.dataset.page) { showToolPage(target.dataset.page); if (target.hasAttribute('data-plot-return')) document.getElementById('graph-plot').click(); return; }
   if (target.dataset.subtab) { selectSubtab(target); return; }
   if (target.dataset.value) { append(target.dataset.value); return; }
   if (target.dataset.spell !== undefined) { append(target.dataset.spell); return; }
@@ -126,7 +125,7 @@ function initializeSettings() {
     const saved = JSON.parse(localStorage.getItem('math-aac-settings') || '{}');
     if (saved && typeof saved === 'object' && !Array.isArray(saved)) savedSettings = saved;
   } catch (_) { /* Settings are optional; storage failures must not interrupt startup. */ }
-  const settingIds = ['theme-select', 'size-range', 'google-voice', 'kokoro-voice', 'rate-range', 'volume-range', 'auto-speak', 'voice-select'];
+  const settingIds = ['theme-select', 'size-range', 'google-voice', 'kokoro-voice', 'rate-range', 'volume-range', 'voice-select'];
   settingIds.forEach(id => {
     const control = document.querySelector('#' + id);
     if (!control || savedSettings[id] === undefined) return;
@@ -150,7 +149,7 @@ function initializeSettings() {
   fetch('/api/tts-status').then(response => response.json()).then(info => {
     const engineStatus = document.querySelector('.engine-status');
     if (!engineStatus) return;
-    engineStatus.textContent = info.google_configured ? 'Primary speech engine: Google Cloud. Kokoro is ready for offline fallback.' : 'Google Cloud is not configured on this device. Configure credentials to use the selected Google voice; Kokoro remains the offline fallback.';
+    engineStatus.textContent = info.google_configured ? 'Online: Google Cloud. Offline fallback: Kokoro.' : 'Online voice needs Google credentials. Offline fallback: Kokoro.';
   }).catch(() => {});
 }
 

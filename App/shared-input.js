@@ -2,8 +2,8 @@
 (function () {
   'use strict';
   const get = id => document.getElementById(id), bar = get('display');
-  const selector = get('math-input-target');
   const fields = {
+    'template-first': 'Expression builder · first value', 'template-second': 'Expression builder · second value',
     'integral-expression': 'Integral · expression', 'integral-variable': 'Integral · variable',
     'integral-lower': 'Integral · lower bound', 'integral-upper': 'Integral · upper bound',
     'function-name': 'Function · name', 'function-parameters': 'Function · variables',
@@ -61,20 +61,13 @@
     const editingField = field || target;
     if (field || target) invalidate();
     target = field;
-    selector.value = field?.id || '';
     if (field) { bar.value = field.value; selection(field, bar); }
-    get('shared-input-help').textContent = field
-      ? fields[field.id] + ' is linked to the TTS bar. Symbols from every math tab edit this field.'
-      : 'Choose a field to edit it through the TTS bar. Keep using symbols from any math tab.';
-    document.querySelectorAll('.keypad-target, #function-keypad-target').forEach(label => {
-      label.textContent = 'Keypad edits: ' + (field ? fields[field.id] : 'TTS bar');
-    });
+    get('field-context').hidden = !field;
     for (const id of Object.keys(fields)) get(id).classList.toggle('linked-math-field', id === field?.id);
     get('editing-location').textContent = 'Editing: ' + (field ? fields[field.id] : 'TTS bar / calculator');
     get('return-to-field').hidden = !field;
     get('return-to-field').textContent = field ? 'Return to ' + fields[field.id].split(' · ')[0].toLowerCase() : 'Return to field';
     if (editingField) window.calculatorAccess?.editing();
-    window.calculatorAccess?.updateGuide();
     window.scheduleCalculatorPreview();
   }
   function changed(field = bar) {
@@ -101,9 +94,11 @@
   }
   for (const [id, label] of Object.entries(fields)) {
     const field = get(id);
-    selector.add(new Option(label, id));
-    get('shared-use-display').add(new Option(label, id));
-    field.addEventListener('focus', () => choose(field));
+    field.addEventListener('focus', () => {
+      if (id.startsWith('template-')) window.calculatorAccess?.templateEntering();
+      choose(field);
+    });
+    field.addEventListener('click', () => { if (target !== field) choose(field); });
     field.addEventListener('beforeinput', checkpoint);
     field.addEventListener('input', () => { if (target === field) { bar.value = field.value; selection(field, bar); invalidate(); window.calculatorAccess?.editing(); window.scheduleCalculatorPreview(); } });
     for (const event of ['select', 'click', 'keyup']) field.addEventListener(event, () => { if (target === field) selection(field, bar); });
@@ -113,23 +108,18 @@
   get('calculator-undo').onclick = undo;
   get('return-to-field').onclick = () => {
     if (!target) return;
-    const panel = target.id.startsWith('integral-') ? 'calculus' : target.id.startsWith('function-') ? 'functions' : target.id.startsWith('graph-') ? 'graphing' : 'greek';
+    const panel = target.id.startsWith('integral-') ? 'calculus' : target.id.startsWith('function-') ? 'functions' : target.id.startsWith('graph-') ? 'graphing' : target.id.startsWith('template-') ? 'algebra' : 'discrete';
     selectTab('math'); selectSubtab(document.querySelector('[data-subtab="' + panel + '"]'));
+    const page = target.closest('.tool-page');
+    if (page) showToolPage(page.id);
     target.focus();
   };
-  selector.onchange = () => { choose(get(selector.value)); bar.focus(); };
-  get('shared-use-display').onchange = () => {
-    const field = get(get('shared-use-display').value);
-    if (!field) return;
-    checkpoint();
-    field.value = bar.value; choose(field); notify(field);
-    get('shared-use-display').value = '';
-    setStatus('TTS bar copied to ' + fields[field.id] + '.'); bar.focus();
-  };
+  get('finish-field').onclick = () => { choose(null); bar.focus(); };
   function solve() {
     const id = target?.id || '';
     if (!id && current() && !current().source) { setStatus('Choose a field or enter a math expression in the bar to solve.'); return; }
-    if (id.startsWith('integral-')) window.solveIntegral();
+    if (id.startsWith('template-')) get('calculator-insert-template').click();
+    else if (id.startsWith('integral-')) window.solveIntegral();
     else if (id === 'function-arguments') get('evaluate-function').click();
     else if (id.startsWith('function-')) get('save-function').click();
     else if (/^(series-|count-|set-)/.test(id)) get('discrete-calculate').click();

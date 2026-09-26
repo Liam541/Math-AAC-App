@@ -4,13 +4,13 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const read = file => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
-const html = read('index.html');
+const html = read('index (1).html');
 const pageScripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)].map(([, attributes, body]) => {
   const src = /src="([^"]+)"/.exec(attributes)?.[1];
   return src ? read(src.split('?')[0]) : body;
 });
 
-function browser({ storage = null, speech = true, legacyCalculus = false } = {}) {
+function browser({ storage = null, speech = true } = {}) {
   const listeners = {}, elements = {}, played = [], paused = [], revoked = [], fallback = [];
   const timers = new Map(); let timerId = 0;
   class Element {
@@ -25,7 +25,7 @@ function browser({ storage = null, speech = true, legacyCalculus = false } = {})
     get selectedOptions() { return this.children.filter(child => child.value === this.value); }
     querySelector() { return null; }
     querySelectorAll(selector) {
-      if (this === elements['#math'] && selector === '.subpanel') return ['basic', 'algebra', 'calculus', 'greek', 'functions', 'graphing'].map(id => elements['#' + id]);
+      if (this === elements['#math'] && selector === '.subpanel') return ['basic', 'scientific', 'algebra', 'calculus', 'greek', 'discrete', 'functions', 'graphing'].map(id => elements['#' + id]);
       if (this === elements['#math'] && selector === '.subtab') return Object.values(tabs);
       if (this === elements['#calculus'] && selector === 'input') return ['lower', 'upper', 'expression', 'variable'].map(part => elements['#integral-' + part]);
       return [];
@@ -42,21 +42,19 @@ function browser({ storage = null, speech = true, legacyCalculus = false } = {})
   for (const match of html.matchAll(/<input\b[^>]*\bid="([^"]+)"[^>]*value="([^"]*)"/g)) elements['#' + match[1]].value = match[2];
   for (const match of html.matchAll(/<[^>]*\bid="([^"]+)"[^>]*\bhidden\b[^>]*>/g)) elements['#' + match[1]].hidden = true;
   for (const match of html.matchAll(/<[^>]*\bid="([^"]+)"[^>]*\bdisabled\b[^>]*>/g)) elements['#' + match[1]].disabled = true;
-  const tabs = Object.fromEntries(['basic', 'algebra', 'calculus', 'greek', 'functions', 'graphing'].map(id => { const tab = new Element(); tab.dataset.subtab = id; return [id, tab]; }));
-  const legacyBoard = new Element(); legacyBoard.dataset.buttons = 'calculus';
+  const tabs = Object.fromEntries(['basic', 'scientific', 'algebra', 'calculus', 'greek', 'discrete', 'functions', 'graphing'].map(id => { const tab = new Element(); tab.dataset.subtab = id; return [id, tab]; }));
   elements['#math'].classList.toggle('active', true); elements['#basic'].classList.toggle('active', true);
   for (const [id, value] of Object.entries({ 'rate-range': '175', 'volume-range': '50', 'size-range': '18', 'function-name': 'f', 'function-parameters': 'x' })) elements['#' + id].value = value;
   elements['#calculator-template'].value = 'fraction';
   elements['#template-first-label'].textContent = 'Numerator (top)';
   elements['#template-second-label'].textContent = 'Denominator (bottom)';
-  elements['#auto-speak'].type = 'checkbox'; elements['#auto-speak'].checked = true;
   const requests = [];
   const context = vm.createContext({
     navigator: {}, AbortController, Event,
     setTimeout: (fn, delay) => { timers.set(++timerId, { fn, delay }); return timerId; }, clearTimeout: id => timers.delete(id),
     localStorage: storage || { getItem: () => null, setItem() {} },
     document: { querySelector: selector => elements[selector] || tabs[/data-subtab="(\w+)"/.exec(selector)?.[1]] || new Element(), getElementById: id => elements['#' + id],
-      querySelectorAll: selector => selector === '.subject' ? ['math', 'spell', 'communication', 'settings'].map(id => elements['#' + id]) : selector === '[data-buttons]' && legacyCalculus ? [legacyBoard] : [], createElement: () => new Element(), createElementNS: () => new Element(),
+      querySelectorAll: selector => selector === '.subject' ? ['math', 'spell', 'appearance', 'settings'].map(id => elements['#' + id]) : [], createElement: () => new Element(), createElementNS: () => new Element(),
       addEventListener(type, handler) { (listeners[type] ||= []).push(handler); }, body: new Element(), documentElement: new Element() },
     Option: function (text, value) { this.textContent = text; this.value = value; },
     SpeechSynthesisUtterance: function (text) { this.text = text; },
@@ -74,7 +72,7 @@ function browser({ storage = null, speech = true, legacyCalculus = false } = {})
   };
   const response = { ok: true, blob: async () => ({}), headers: { get: key => key === 'X-TTS-Engine' ? 'kokoro' : null } };
   const flushInput = () => { for (const [id, timer] of [...timers]) if (timer.delay <= 200) { timers.delete(id); timer.fn(); } };
-  return { context, elements, listeners, requests, played, paused, revoked, fallback, boot, response, legacyBoard, flushInput };
+  return { context, elements, listeners, requests, played, paused, revoked, fallback, boot, response, flushInput };
 }
 
 test('full page initializes without speech support or working settings storage', () => {
@@ -89,13 +87,8 @@ test('full page initializes without speech support or working settings storage',
   }
 });
 
-test('auto-speak setting is honored and display editing respects the selection', () => {
+test('display editing respects the selection', () => {
   const b = browser(); b.boot();
-  let spoken = 0; b.context.speak = () => { spoken++; };
-  b.elements['#auto-speak'].checked = false;
-  b.elements['#quick-phrases'].children[0].onclick(); assert.equal(spoken, 0);
-  b.elements['#auto-speak'].checked = true;
-  b.elements['#quick-phrases'].children[0].onclick(); assert.equal(spoken, 1);
   const display = b.elements['#display']; display.value = '123'; display.selectionStart = 1; display.selectionEnd = 2;
   vm.runInContext("append('9')", b.context); assert.equal(display.value, '193');
   const button = { dataset: { action: 'backspace' } };
@@ -154,21 +147,14 @@ test('the integral button opens a working editor and typing or keypad edits reca
   assert.match(e['#integral-result'].textContent, /0\.333333333333/);
   e['#integral-upper'].value = '3'; e['#integral-upper'].handlers.input.forEach(fn => fn()); b.flushInput();
   assert.match(e['#integral-result'].textContent, /≈ 9$/);
-  e['#integral-edit-upper'].click();
-  e['#integral-keypad-host'].children.at(-1).children.find(key => key.textContent === '2').click(); b.flushInput();
+  e['#integral-upper'].focus(); e['#integral-upper'].select();
+  b.context.sharedMath.edit('2'); b.flushInput();
   assert.match(e['#integral-result'].textContent, /≈ 2\.66666666667$/);
   e['#integral-indefinite'].click(); assert.match(e['#integral-result'].textContent, /\+ C$/);
   e['#integral-expression'].value = 'x+'; e['#integral-expression'].handlers.input.forEach(fn => fn()); b.flushInput();
   assert.match(e['#integral-result'].textContent, /Could not calculate/);
   e['#integral-expression'].value = 'x*x'; e['#integral-expression'].handlers.input.forEach(fn => fn()); b.flushInput();
   assert.match(e['#integral-result'].textContent, /\+ C$/);
-});
-
-test('legacy integral button no longer inserts a non-solving text label', () => {
-  const b = browser({ legacyCalculus: true }); b.boot();
-  b.elements['#display'].value = 'x^2'; b.legacyBoard.children[0].onclick();
-  assert.equal(b.elements['#display'].value, 'x^2');
-  assert.match(b.elements['#integral-result'].textContent, /0\.333333333333/);
 });
 
 test('calculator solves live without overwriting an expression or changing Ans', () => {
@@ -206,22 +192,17 @@ test('Greek and calculator boards edit the selected integral through the shared 
   assert.equal(e['#integral-variable'].value, 'θ');
 });
 
-test('copying, typing, selection replacement and deleting stay synchronized across fields', () => {
+test('typing, selection replacement and deleting stay synchronized across fields', () => {
   const b = browser(); b.boot(); const e = b.elements, shared = b.context.sharedMath;
-  e['#display'].value = 'sin(θ)';
-  e['#shared-use-display'].value = 'function-rule'; e['#shared-use-display'].onchange();
-  assert.equal(e['#function-rule'].value, 'sin(θ)');
+  e['#function-rule'].focus(); shared.edit('sin(θ)');
   e['#display'].setSelectionRange(4, 5); shared.edit('x');
   assert.equal(e['#function-rule'].value, 'sin(x)');
   shared.erase(); assert.equal(e['#function-rule'].value, 'sin()');
   shared.erase(true); assert.equal(e['#function-rule'].value, '');
   e['#display'].value = 'x^2'; e['#display'].dispatchEvent({ type: 'input' });
   assert.equal(e['#function-rule'].value, 'x^2');
-  e['#shared-use-display'].value = 'graph-expression'; e['#shared-use-display'].onchange();
-  assert.equal(e['#graph-expression'].value, 'x^2');
-  e['#math-input-target'].value = ''; e['#math-input-target'].onchange();
-  shared.erase(true); shared.edit('5');
-  assert.equal(e['#graph-expression'].value, 'x^2');
+  e['#finish-field'].click(); shared.erase(true); shared.edit('5');
+  assert.equal(e['#function-rule'].value, 'x^2');
 });
 
 test('integrals entered in the bar retain the solved equation and reopen in the editor', () => {
@@ -254,18 +235,13 @@ test('shared integral speech includes the Greek variable, differential, and appr
   assert.match(b.context.AACFunctions.speechSource('integral(θ^2,θ,0,3)'), /with respect to theta/);
 });
 
-test('calculator retains problem and answer with independent speech choices', () => {
+test('compact result retains the equation and answer speech until editing', () => {
   const b = browser(); b.boot(); const e = b.elements, spoken = [];
   b.context.speak = text => spoken.push(text);
   b.context.sharedMath.edit('2+3'); e['#shared-solve'].click(); b.flushInput();
-  assert.equal(e['#calculator-problem'].textContent, '2+3');
-  assert.equal(e['#calculator-answer'].textContent, '5');
-  e['#speak-problem'].click(); e['#speak-answer'].click(); e['#speak-both'].click();
-  assert.deepEqual(spoken, ['2+3', '5', '2+3 equals 5']);
-  b.context.sharedMath.edit('+1');
-  assert.equal(e['#speak-answer'].disabled, true);
-  assert.equal(e['#speak-both'].disabled, true);
-  assert.equal(e['#calculator-problem'].textContent, '5+1');
+  assert.equal(e['#calculator-result'].textContent, '2+3 = 5');
+  e['#speak-answer'].click(); assert.deepEqual(spoken, ['5']);
+  b.context.sharedMath.edit('+1'); assert.equal(e['#speak-answer'].disabled, true);
 });
 
 test('Undo recovers a solved equation, cleared input and cross-field replacements', () => {
@@ -273,8 +249,7 @@ test('Undo recovers a solved equation, cleared input and cross-field replacement
   shared.edit('2+3'); e['#shared-solve'].click();
   shared.erase(true); e['#calculator-undo'].click(); b.flushInput();
   assert.equal(e['#display'].value, '5');
-  assert.equal(e['#calculator-problem'].textContent, '2+3');
-  assert.equal(e['#calculator-answer'].textContent, '5');
+  assert.equal(e['#calculator-result'].textContent, '2+3 = 5');
   e['#calculator-undo'].click(); b.flushInput();
   assert.equal(e['#display'].value, '2+3');
   assert.equal(e['#speak-answer'].disabled, true);
@@ -283,24 +258,15 @@ test('Undo recovers a solved equation, cleared input and cross-field replacement
   assert.equal(e['#integral-expression'].value, 'sin(x)');
   assert.equal(e['#display'].value, 'sin(x)');
   e['#calculator-undo'].click(); assert.equal(e['#integral-expression'].value, 'x^2');
-  shared.choose(null); e['#display'].value = 'cos(x)';
-  e['#shared-use-display'].value = 'function-rule'; e['#shared-use-display'].onchange();
-  e['#calculator-undo'].click();
-  assert.equal(e['#function-rule'].value, ''); assert.equal(e['#display'].value, 'cos(x)');
+
 });
 
-test('Undo covers physical typing and speech phrases preserve the current equation', () => {
-  const b = browser(); b.boot(); const e = b.elements, spoken = [];
-  b.context.speak = text => spoken.push(text);
+test('Undo covers physical typing', () => {
+  const b = browser(); b.boot(); const e = b.elements;
   b.context.sharedMath.edit('12');
   e['#display'].dispatchEvent({ type: 'beforeinput' });
   e['#display'].value = '123'; e['#display'].dispatchEvent({ type: 'input' });
   e['#calculator-undo'].click(); assert.equal(e['#display'].value, '12');
-  e['#calculator-phrases'].children[0].click();
-  assert.deepEqual(spoken, ['I need more time.']); assert.equal(e['#display'].value, '12');
-  e['#calculator-phrase-text'].value = 'Please show another example.'; e['#calculator-save-phrase'].click();
-  e['#calculator-phrases'].children[0].click();
-  assert.equal(spoken.at(-1), 'Please show another example.'); assert.equal(e['#display'].value, '12');
 });
 
 test('Stop speaking cancels both pending requests and audio without late fallback', async () => {
@@ -317,56 +283,40 @@ test('Stop speaking cancels both pending requests and audio without late fallbac
   assert.equal(b.played.length, 1);
 });
 
-test('More functions leaves the main keys fixed and structured templates insert solvable math', () => {
+test('structured templates insert solvable math', () => {
   const b = browser(); b.boot(); const e = b.elements;
-  e['#calculator-more'].click(); assert.equal(e['#calculator-more-panel'].hidden, false);
-  assert.equal(e['#calculator-more'].attributes['aria-expanded'], 'true');
   e['#template-first'].value = '1+2'; e['#template-second'].value = '3';
   e['#calculator-insert-template'].click(); e['#shared-solve'].click();
   assert.equal(e['#display'].value, '1');
   b.context.sharedMath.erase(true);
   e['#calculator-template'].value = 'power'; e['#calculator-template'].onchange();
-  assert.equal(e['#template-second-label'].textContent, 'Exponent (power)');
+  assert.equal(e['#template-second-label'].textContent, 'Exponent');
   e['#template-first'].value = '2'; e['#template-second'].value = '3';
   e['#calculator-insert-template'].click(); e['#shared-solve'].click();
   assert.equal(e['#display'].value, '8');
   assert.doesNotMatch(html, /data-action="second"/);
 });
 
-test('editing location, return button and integral guide track the actual field', () => {
+test('editing location and return button track the actual field', () => {
   const b = browser(); b.boot(); const e = b.elements;
-  e['#calculator-integral-guide'].click();
-  assert.equal(b.context.sharedMath.target().id, 'integral-expression');
-  assert.equal(e['#integral-expression'].classList.contains('linked-math-field'), true);
-  e['#integral-guide-next'].click(); assert.equal(b.context.sharedMath.target().id, 'integral-variable');
-  e['#integral-guide-next'].click(); assert.equal(b.context.sharedMath.target().id, 'integral-lower');
-  e['#integral-guide-next'].click(); assert.equal(b.context.sharedMath.target().id, 'integral-upper');
-  assert.equal(e['#integral-guide-next'].textContent, 'Solve integral');
-  vm.runInContext('selectSubtab(document.querySelector(\'[data-subtab="greek"]\'))', b.context);
+  e['#integral-upper'].focus();
+  assert.equal(e['#integral-upper'].classList.contains('linked-math-field'), true);
+  b.context.selectSubtab(b.context.document.querySelector('[data-subtab="greek"]'));
   e['#return-to-field'].click();
   assert.equal(e['#calculus'].classList.contains('active'), true);
   assert.match(e['#editing-location'].textContent, /upper bound/);
-  e['#integral-guide-next'].click();
-  assert.match(e['#calculator-problem'].textContent, /^∫ from/);
-  assert.equal(e['#calculator-answer'].textContent, '≈ 0.333333333333');
+  e['#finish-field'].click(); assert.equal(e['#field-context'].hidden, true);
 });
 
 test('calculator preferences persist, respect subject navigation, and tolerate malformed storage', () => {
   const stored = new Map();
   const storage = { getItem: key => stored.get(key) || null, setItem: (key, value) => stored.set(key, value) };
   const b = browser({ storage }); b.boot(); const e = b.elements;
-  e['#calculator-focus'].checked = true; e['#calculator-focus'].onchange();
-  assert.equal(b.context.document.body.classList.contains('math-focus'), true);
-  vm.runInContext("selectTab('spell')", b.context);
-  assert.equal(b.context.document.body.classList.contains('math-focus'), false);
-  vm.runInContext("selectTab('math')", b.context);
-  assert.equal(b.context.document.body.classList.contains('math-focus'), true);
   e['#calculator-preview'].checked = false; e['#calculator-preview'].onchange();
   b.context.sharedMath.edit('2+3'); b.flushInput();
   assert.match(e['#calculator-result'].textContent, /Press Solve/);
-  e['#shared-solve'].click(); assert.equal(e['#calculator-answer'].textContent, '5');
+  e['#shared-solve'].click(); assert.equal(e['#calculator-result'].textContent, '2+3 = 5');
   const next = browser({ storage }); next.boot();
-  assert.equal(next.elements['#calculator-focus'].checked, true);
   assert.equal(next.elements['#calculator-preview'].checked, false);
   assert.doesNotThrow(browser({ storage: { getItem: () => '{"preferences":5}', setItem() {} } }).boot);
 });
@@ -377,11 +327,11 @@ test('incomplete expressions give a repair instruction and quiet mode waits for 
   assert.match(e['#calculator-result'].textContent, /Add a closing parenthesis/);
   assert.equal(e['#speak-answer'].disabled, true);
   b.context.sharedMath.erase(true); b.context.sharedMath.edit('2+'); e['#shared-solve'].click();
-  assert.match(e['#calculator-result'].textContent, /after the last operator/);
+  assert.match(e['#calculator-result'].textContent, /after the operator/);
   e['#calculator-preview'].checked = false; e['#calculator-preview'].onchange();
   e['#integral-expression'].focus(); e['#integral-expression'].select(); b.context.sharedMath.edit('x^2');
   b.flushInput(); assert.match(e['#integral-result'].textContent, /Press Solve/);
-  e['#shared-solve'].click(); assert.match(e['#calculator-answer'].textContent, /^≈ /);
+  e['#shared-solve'].click(); assert.match(e['#calculator-result'].textContent, /≈ /);
   const spoken = []; b.context.speak = text => spoken.push(text);
   e['#speak-answer'].click(); assert.match(spoken[0], /^approximately /);
 });
@@ -392,14 +342,13 @@ test('failed solves do not consume Undo, and switching subjects retains a solved
   assert.equal(e['#display'].value, '');
   b.context.sharedMath.edit('2+3'); e['#shared-solve'].click();
   vm.runInContext("selectTab('settings'); selectTab('math')", b.context); b.flushInput();
-  assert.equal(e['#calculator-problem'].textContent, '2+3');
-  assert.equal(e['#calculator-answer'].textContent, '5');
+  assert.equal(e['#calculator-result'].textContent, '2+3 = 5');
   e['#integral-expression'].focus(); e['#integral-expression'].select();
   b.context.sharedMath.edit('x+'); e['#shared-solve'].click(); e['#calculator-undo'].click();
   assert.equal(e['#integral-expression'].value, 'x^2');
 });
 
-test('word insertion respects the cursor and spelling and quick phrases participate in Undo', () => {
+test('word insertion respects the cursor and spelling participates in Undo', () => {
   const b = browser(); b.boot(); const e = b.elements, bar = e['#display'];
   bar.value = 'I help'; bar.setSelectionRange(2, 2);
   vm.runInContext("append('need', true)", b.context);
@@ -410,9 +359,7 @@ test('word insertion respects the cursor and spelling and quick phrases particip
   b.listeners.click[0]({ target: { closest: () => button } });
   assert.equal(bar.value, 'I help!');
   e['#calculator-undo'].click(); assert.equal(bar.value, 'I help');
-  e['#auto-speak'].checked = false;
-  e['#quick-phrases'].children[0].click(); e['#calculator-undo'].click();
-  assert.equal(bar.value, 'I help');
+
 });
 
 test('speech preserves AAC punctuation and reads powers and logarithms correctly', async () => {
@@ -443,4 +390,28 @@ test('settings changes update appearance and retain the fallback voice preferenc
   assert.equal(b.context.document.body.dataset.theme, 'warm');
   e['#voice-select'].value = 'Test voice'; e['#voice-select'].dispatchEvent({ type: 'change' });
   assert.equal(JSON.parse(saved.get('math-aac-settings'))['voice-select'], 'Test voice');
+});
+
+
+test('Settings and Appearance stay accessible without breaking a linked math field', () => {
+  const b = browser(); b.boot(); const e = b.elements;
+  e['#integral-expression'].focus();
+  for (const tab of ['settings', 'appearance', 'spell', 'math']) {
+    b.context.selectTab(tab);
+    assert.equal(e['#' + tab].classList.contains('active'), true);
+    assert.equal(b.context.sharedMath.target().id, 'integral-expression');
+  }
+  assert.equal(e['#letter-buttons'].children.length, 28);
+});
+
+test('touch template fields restore the original destination on insertion', () => {
+  const b = browser(); b.boot(); const e = b.elements;
+  e['#integral-expression'].focus(); e['#integral-expression'].select();
+  e['#template-first'].focus(); b.context.sharedMath.edit('1');
+  e['#template-second'].focus(); b.context.sharedMath.edit('2');
+  e['#calculator-insert-template'].click();
+  assert.equal(e['#integral-expression'].value, '((1)/(2))');
+  assert.equal(b.context.sharedMath.target().id, 'integral-expression');
+  assert.equal(e['#template-first'].value, '1');
+  assert.equal(e['#template-second'].value, '2');
 });

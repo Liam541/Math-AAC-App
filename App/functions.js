@@ -476,7 +476,7 @@
       liveResult.textContent = message;
     }
     function renderFunctions(selectedName) {
-      for (const id of ['saved-function', 'compose-function', 'calculator-function']) {
+      for (const id of ['saved-function', 'compose-function']) {
         const select = get(id);
         const previous = id === 'compose-function' ? select.value : selectedName || select.value;
         select.replaceChildren();
@@ -521,13 +521,13 @@
       : Number.isSafeInteger(result.value) ? String(result.value) : String(Number(result.value.toPrecision(12)));
     window.previewCalculator = () => {
       if (!get('math').classList.contains('active')) return;
-      window.calculatorAccess?.refresh();
+      if (window.calculatorAccess?.refresh()) return;
       if (window.calculatorAccess && !get('calculator-preview').checked) { liveResult.textContent = 'Press Solve when you are ready. Your entry will stay available.'; return; }
       if (!input.value.trim()) { liveResult.textContent = 'Enter an expression to see its solution.'; return; }
       try {
         const published = window.sharedMath?.current();
         if (published) { liveResult.textContent = published.text; return; }
-        if (window.sharedMath?.target()) { liveResult.textContent = 'Editing ' + get('math-input-target').selectedOptions[0].textContent + '. Press Solve to calculate the complete expression.'; return; }
+        if (window.sharedMath?.target()) { liveResult.textContent = 'Press Solve to calculate the selected tool.'; return; }
         const result = calculator.preview(input.value);
         liveResult.textContent = result.kind === 'definition'
           ? result.definition.source + ' — press ENTER to save, then enter a value such as ' + result.definition.name + '(3).'
@@ -613,7 +613,7 @@
     for (const [field, label] of [[rule, 'Rule'], [argumentsInput, 'Evaluate at'], [input, 'Display'], [get('function-name'), 'Function name'], [get('function-parameters'), 'Variables']]) {
       field.addEventListener('focus', () => {
         keypadInput = field;
-        get('function-keypad-target').textContent = 'Keypad edits: ' + label;
+
       });
     }
     // Common-function buttons already call append(); route them to the chosen field only here.
@@ -650,6 +650,7 @@
       get('function-name').value = definition.name;
       get('function-parameters').value = definition.parameters.join(',');
       rule.value = definition.body;
+      window.showToolPage?.('function-define');
       rule.focus();
       report('Editing ' + definition.source + '. Press Save function to apply changes.');
     });
@@ -664,7 +665,7 @@
       report('Enter ' + definition.parameters.join(', ') + ' inside the parentheses, then press ENTER.');
     }
     get('use-function').addEventListener('click', () => useInCalculator('saved-function'));
-    get('calculator-insert-function').addEventListener('click', () => useInCalculator('calculator-function'));
+
     get('insert-function').addEventListener('click', () => {
       const definition = selected();
       if (definition) insertAt(window.sharedMath ? input : keypadInput, definition.name + '()', true);
@@ -673,7 +674,7 @@
       const outer = selected();
       const inner = compose ? selected('compose-function') : null;
       if (!outer || (compose && !inner)) return;
-      if (!argumentsInput.value.trim()) { report('Enter a value in Evaluate at first.'); argumentsInput.focus(); return; }
+      if (!argumentsInput.value.trim()) { report('Enter a value in Evaluate at first.'); window.showToolPage?.('function-evaluate'); argumentsInput.focus(); return; }
       const expression = compose
         ? `${outer.name}(${inner.name}(${argumentsInput.value}))`
         : `${outer.name}(${argumentsInput.value})`;
@@ -694,29 +695,6 @@
       rule.value = definition?.body || '';
       rule.focus();
     }));
-    const keys = ['7', '8', '9', '+', '(', ')', '4', '5', '6', '-', 'x', '^', '1', '2', '3', '*', 'y', ',', '0', '.', '/', 'Backspace', 'Clear', 'Variables'];
-    keys.forEach(value => {
-      const button = document.createElement('button');
-      button.className = 'key' + (['Backspace', 'Clear', 'Variables'].includes(value) ? ' secondary' : '');
-      button.textContent = value;
-      button.addEventListener('click', () => {
-        if (window.sharedMath) {
-          if (value === 'Clear' || value === 'Backspace') window.sharedMath.erase(value === 'Clear');
-          else window.sharedMath.edit(value === 'Variables' ? get('function-parameters').value : value);
-          return;
-        }
-        if (value === 'Clear') { keypadInput.value = ''; keypadInput.focus(); }
-        else if (value === 'Backspace') {
-          const end = keypadInput.selectionEnd ?? keypadInput.value.length;
-          const start = keypadInput.selectionStart ?? end;
-          keypadInput.setRangeText('', start === end ? Math.max(0, start - 1) : start, end, 'end');
-          keypadInput.focus();
-        } else if (value === 'Variables') {
-          insertAt(keypadInput, get('function-parameters').value);
-        } else insertAt(keypadInput, value);
-      });
-      get('function-keypad').append(button);
-    });
     statusArea.setAttribute('role', 'status');
     statusArea.setAttribute('aria-live', 'polite');
   }
@@ -746,10 +724,6 @@
       field.select();
     }
     for (const part of integralFields) {
-      get('integral-edit-' + part).onclick = () => focusIntegralField(part);
-      get('integral-' + part).addEventListener('focus', () => {
-        for (const item of integralFields) get('integral-edit-' + item).setAttribute('aria-pressed', String(item === part));
-      });
       get('integral-' + part).addEventListener('input', scheduleIntegral);
     }
     get('integral-lower').addEventListener('keydown', event => {
@@ -761,18 +735,9 @@
     function setIntegralMode(isDefinite) {
       definite = isDefinite;
       get('integral-bounds').hidden = !definite;
-      get('integral-edit-lower').hidden = !definite;
-      get('integral-edit-upper').hidden = !definite;
-      get('integral-entry-help').textContent = definite
-        ? 'Tap a slot to edit it, or press Tab to move from the lower bound to the upper bound, expression, and variable.'
-        : 'Enter the expression and variable. Switch to Definite to add upper and lower bounds.';
       for (const [id, selected] of [['integral-definite', definite], ['integral-indefinite', !definite]]) {
         get(id).setAttribute('aria-pressed', String(selected)); get(id).classList.toggle('blue', selected);
       }
-      get('integral-calculate').textContent = 'SOLVE';
-      get('integral-help').textContent = definite
-        ? 'Numerical approximation for continuous functions over finite bounds. Bounds accept expressions such as pi. Do not use intervals crossing a singularity.'
-        : 'Find an antiderivative + C. Supports powers, sums, constant multiples, sin, cos, exp, and reciprocals of linear expressions.';
       get('integral-result').textContent = 'Ready to calculate ' + (definite ? 'a definite integral.' : 'an antiderivative.');
       focusIntegralField(definite ? 'lower' : 'expression');
       solveIntegral(true);
@@ -870,6 +835,7 @@
     get('greek-function').onclick = () => {
       get('function-parameters').value = greekVariable;
       selectTab('math'); selectSubtab(document.querySelector('[data-subtab="functions"]'));
+      window.showToolPage?.('function-define');
       get('function-rule').focus();
       setStatus('Write a rule using ' + greekVariable + ', then save the function.');
     };
@@ -877,6 +843,7 @@
       const op = value('discrete-operation');
       const groups = { series: ['sum', 'product'], counting: ['choose', 'permute'], sets: ['union', 'intersection', 'difference'], logic: ['and', 'or', 'implies'] };
       for (const [group, ops] of Object.entries(groups)) get('discrete-' + group).hidden = !ops.includes(op);
+      if (window.sharedMath?.target()?.closest('[hidden]')) window.sharedMath.choose(null);
       get('discrete-result').textContent = 'Enter values for ' + get('discrete-operation').selectedOptions[0].textContent + '.';
     }
     get('discrete-operation').onchange = discreteMode;
@@ -959,7 +926,7 @@
         if (!valid) throw firstError || Error('No real values in this x range.');
         draw('path', { d: path, class: 'graph-curve', fill: 'none' });
         svg.setAttribute('aria-label', `Graph of y = ${expression}, x from ${xmin} to ${xmax}, y from ${ymin} to ${ymax}`);
-        return visible ? `y = ${expression}. Plotted over ${formatted(xmin)} ≤ x ≤ ${formatted(xmax)}. Gaps may indicate undefined values or values outside the window.` : 'No curve is visible in this y window. Adjust the y bounds.';
+        return visible ? `y = ${expression}. Plotted over ${formatted(xmin)} ≤ x ≤ ${formatted(xmax)}.` : 'No curve is visible in this y window. Adjust the y bounds.';
       });
     }
     get('graph-plot').onclick = plot;
@@ -981,53 +948,10 @@
     };
     document.querySelector('[data-subtab="graphing"]').addEventListener('click', () => { refreshFunctions(); plot(); });
 
-    // Keep the familiar keys available for touch entry into each tool's selected field.
-    for (const [panel, initial, action] of [['calculus', 'integral-expression', 'integral-calculate'], ['greek', 'series-expression', 'discrete-calculate'], ['graphing', 'graph-expression', 'graph-plot']]) {
-      let target = get(initial);
-      const host = panel === 'calculus' ? get('integral-keypad-host') : get(panel);
-      const help = host.querySelector('.keypad-target') || document.createElement('p'); help.className = 'muted keypad-target';
-      const label = () => { help.textContent = 'Keypad edits: ' + (document.querySelector(`label[for="${target.id}"]`)?.textContent || 'Display'); };
-      label();
+    for (const [panel, action] of [['calculus', 'integral-calculate'], ['discrete', 'discrete-calculate'], ['graphing', 'graph-plot']]) {
       get(panel).querySelectorAll('input').forEach(field => {
-        field.addEventListener('focus', () => { target = field; label(); });
         field.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); get(field.id === 'graph-at' ? 'graph-evaluate' : action).click(); } });
       });
-      // Calculus keeps its keypad in the HTML so the controls appear immediately.
-      const grid = host.querySelector('.ti83-grid') || document.createElement('div'); grid.className = 'key-grid ti83-grid';
-      if (!grid.children.length) for (const key of ['7', '8', '9', '+', '(', ')', '4', '5', '6', '-', 'x', '^', '1', '2', '3', '*', 'k', '/', '0', '.', 'pi', 'sin(', 'cos(', 'exp(', 'x²', 't', 'sqrt(', 'ln(', 'DEL', 'CLEAR', 'Previous', 'Next', 'ENTER']) {
-        const button = document.createElement('button'); button.className = 'key' + (['DEL', 'CLEAR', 'Previous', 'Next'].includes(key) ? ' secondary' : key === 'ENTER' ? ' enter' : ''); button.textContent = key;
-        button.dataset.toolKey = key;
-        grid.append(button);
-      }
-      for (const button of grid.children) {
-        const key = button.dataset.toolKey;
-        button.onclick = () => {
-          if (key === 'ENTER') { if (window.sharedMath) window.sharedMath.solve(); else get(action).click(); return; }
-          if (key === 'Previous' || key === 'Next') {
-            const fields = [...get(panel).querySelectorAll('input')].filter(field => !field.closest('[hidden]'));
-            const selected = window.sharedMath?.target() || target;
-            const index = fields.indexOf(selected), direction = key === 'Next' ? 1 : -1;
-            const next = fields[(index + direction + fields.length) % fields.length];
-            if (next) { next.focus(); next.select(); }
-            return;
-          }
-          if (window.sharedMath) {
-            if (key === 'CLEAR' || key === 'DEL') window.sharedMath.erase(key === 'CLEAR');
-            else window.sharedMath.edit(key === 'x²' ? 'x^2' : key);
-            return;
-          }
-          if (target.closest('[hidden]')) {
-            target = [...get(panel).querySelectorAll('input')].find(field => !field.closest('[hidden]')) || get('display');
-            label();
-          }
-          if (key === 'CLEAR') target.value = '';
-          else if (key === 'DEL') { const start = target.selectionStart, end = target.selectionEnd; target.setRangeText('', start === end ? Math.max(0, start - 1) : start, end, 'end'); }
-          else insert(target, key === 'x²' ? 'x^2' : key);
-          target.focus();
-          if (panel === 'calculus') scheduleIntegral();
-        };
-      }
-      host.append(help, grid);
     }
     refreshFunctions();
   }

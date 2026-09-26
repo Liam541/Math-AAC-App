@@ -18,7 +18,6 @@ The application is intended to:
 
 * Provide an accessible way to enter mathematical expressions
 * Allow users to communicate mathematical responses through text-to-speech
-* Provide quick access to commonly used phrases
 * Provide mathematical calculation tools
 * Allow the interface to be personalized for individual users
 * Support mathematical communication from basic arithmetic through higher-level mathematics
@@ -41,32 +40,21 @@ The Math Board provides a touch-based interface for entering:
 
 Different mathematical boards can be selected depending on what the user needs to enter.
 
-The TTS bar is shared by every math board. Tap a tool field or choose it in **Editing** to link it to the bar, then switch tabs to borrow Greek letters, operators, or functions. Typing, selection replacement, Clear, and Backspace update the linked field. Choose **TTS bar / calculator** to return to independent bar entry. **Copy bar to…** transfers existing bar content into any math input without retyping.
+The shared speech bar and number pad work across every math screen. Tap a tool field, then borrow symbols from **Scientific**, **Algebra**, **Greek**, or **Letters**. The outlined field and editing label show where input goes. **Return to field** reopens its screen; **Done editing field** returns to independent bar entry.
 
-**Solve** calculates the selected tool. Integral results appear in the bar with the full integral and answer, ready for **Speak**. **Use answer** makes a numeric result available for the next expression; **Use antiderivative (C = 0)** copies a particular antiderivative for reuse. For example, select Integral · expression, enter `θ^2` with the Greek and Basic boards, set the variable to `θ` and bounds to `0` and `3`, then Solve to display and speak the integral with answer `9`. Functions, discrete results, and graph summaries also have **Send … to TTS bar** controls.
+**Basic** opens first. Advanced tools use short, focused screens: integral bounds and expression, discrete operations, function Define/Evaluate/Compose pages, and graph Plot/Window pages. **Solve** calculates the selected tool. Integral results appear in the bar with the full expression and answer, ready for **Speak**. **Use answer** reuses the result; **Use antiderivative (C = 0)** reuses a particular antiderivative. Discrete results can be sent to the bar as well.
 
-The calculator also keeps **Problem** and **Answer** together, with separate **Speak problem**, **Speak answer**, and **Speak both** buttons. **Stop speaking** cancels speech that is playing or still loading. **Undo** restores recent typing, keypad edits, cleared entries, field copies, and calculator results. The **Editing** label and outlined field show where input goes; **Return to…** brings that field back into view.
+The compact result line retains the last solved equation. **Speak answer** reads its answer; **Stop** cancels speech, including pending requests. **Undo** restores recent edits and calculations. Fraction and power builders are under Algebra.
 
-**More functions** opens additional keys without changing the main keypad. It also offers labeled fraction and power slots and an optional integral guide through expression, variable, and bounds. **Calculator preferences and phrases** includes plain-language key labels, extra key spacing, a sidebar-free math workspace, reduced button movement, and a live-preview toggle. The text-size and appearance link opens the existing settings. Preferences and five customizable math phrases are saved locally when available; speaking these phrases does not replace the equation. These controls support individual preferences and do not assume a user's mathematical ability.
+**Settings** and **Appearance** remain in the top navigation. Settings controls online/offline/browser voices, speed, volume, and voice testing. Appearance controls theme, text size, button movement, and live previews. Preferences and named functions are saved locally. Preset phrases and sidebars have been removed to keep the workspace focused on math.
+
+The layout is designed for laptop viewports of at least 1280 × 650 CSS pixels. Controls stay visible at normal zoom and the supported text sizes; exceptionally small windows or high browser zoom use a flowing layout to preserve access. Long result text can scroll inside its output without moving the controls.
 
 ### Text-to-Speech
 
 Entered responses can be read aloud using text-to-speech functionality.
 
 This allows users to communicate their mathematical responses without needing to verbally produce the response themselves.
-
-### Quick Responses
-
-Users can program commonly used phrases that can be accessed with a single touch.
-
-Examples may include classroom communication such as:
-
-* "I need help."
-* "I have an answer."
-* "Can you repeat the question?"
-* "I am finished."
-
-The exact responses can be customized for individual users.
 
 ### Calculator
 
@@ -76,11 +64,9 @@ The planned functionality is intended to support multiple types of mathematical 
 
 #### Named functions
 
-Open **Math Board → Functions**, or press **Define functions** below the calculator. Choose **Define f(x)**, enter a rule such as `2x+3`, and press **Save function**. Select the saved function, enter `5` in **Evaluate at**, and press **Evaluate selected function**. The keypad edits the last selected Rule, Evaluate at, or Display field.
+Open **Math → Functions → Define**, enter a name, variables, and a rule such as `2x+3`, then choose **Save function**. On **Evaluate**, select the saved function and enter `5` to get `13`. **Edit rule** returns to Define; **Use in calculator** inserts a call in the bar with the cursor inside its parentheses.
 
-For composition, select an outer saved function and an inner function under **Compose with**, enter the inner function's arguments in **Evaluate at**, then press **Evaluate composition**. **Edit selected** loads a definition for editing. **Use in calculator** inserts a call with the cursor inside its parentheses; the calculator also has a saved-function selector and **Insert saved function** button.
-
-You can still type directly into the shared display and press **Evaluate display** in the Functions tab, **ENTER** on the calculator, or Enter on the keyboard:
+For composition, choose the outer function and input on Evaluate, then choose an inner function on **Compose**. You can also enter definitions and expressions directly into the bar and press **Solve** or Enter:
 
 * Define `f(x)=2x+3`, then evaluate `f(5)` to get `13`.
 * Define `g(x)=x^2`, then evaluate `f(g(2))` to get `11`.
@@ -152,16 +138,18 @@ The goal is not simply to provide a calculator, but to allow the user to **commu
 
 ### Current source layout
 
-The browser loads `app.js` (boards, navigation, settings, speech), `functions.js` (the shared math engine and tool interfaces), `shared-input.js` (linked editing and Undo), and `calculator-access.js` (calculator accessibility controls). `index.html` contains the layout, and `styles.css` contains the styling. Older standalone copies of the function and math-tool implementations have been removed; update the shared implementation in `functions.js`.
+The browser loads `app.js` (boards, navigation, settings, speech), `functions.js` (the shared math engine and tool interfaces), `shared-input.js` (linked editing and Undo), and `calculator-access.js` (calculator accessibility controls). `index (1).html` contains the layout, and `styles.css` contains the styling. Older standalone copies of the function and math-tool implementations have been removed; update the shared implementation in `functions.js`.
 
-Run locally with `python App/app.py --no-browser`. Run checks with:
+Run locally with `python App/app.py --no-browser`, then open `http://127.0.0.1:8765/`. The server redirects root and legacy index URLs to the only entry page, `App/index (1).html`. Run checks with:
 
 ```text
 node --test --experimental-test-isolation=none App/tests/functions.test.cjs App/tests/math-tools.test.cjs App/tests/runtime.test.cjs
 python -B -m unittest discover -s App/tests -p "*_test.py"
 ```
 
-The full-page runtime tests load scripts in the order declared in `index.html`. When changing cached frontend assets, update their version in `index.html`, `sw.js`, and the startup URL in `app.py` together.
+An optional real-browser check is available in `App/tests/layout-check.cjs`. It checks all screens, discrete operations, touch-target bounds, overlap, and shared-field flows using an isolated Chrome session on debugging port 9224 and the app on port 8766.
+
+The full-page runtime tests load scripts in the order declared in `index (1).html`. When changing cached frontend assets, update their version in `index (1).html`, `sw.js`, and the startup URL in `app.py` together.
 
 ### Software
 
@@ -203,7 +191,6 @@ The interface is being designed around:
 * Customizable controls
 * Personalized icons
 * Text-to-speech output
-* Quick-access responses
 * Reduced reliance on verbal communication
 
 Because accessibility needs vary between individuals, personalization is an important part of the application's design.

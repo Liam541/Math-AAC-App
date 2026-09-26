@@ -96,7 +96,7 @@ function ui(storage = new Map(), bootApp = false) {
       this.setSelectionRange(start + text.length, start + text.length);
     },
     addEventListener(name, callback) { this.handlers[name] = callback; }, setAttribute() {} });
-  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '../index (1).html'), 'utf8');
   const elements = Object.fromEntries([...html.matchAll(/id="([^"]+)"/g)].map(match => ['#' + match[1], element()]));
   const tabs = { basic: { dataset: { subtab: 'basic' } }, functions: { dataset: { subtab: 'functions' } } };
   elements['#function-name'].value = 'f'; elements['#function-parameters'].value = 'x';
@@ -106,7 +106,7 @@ function ui(storage = new Map(), bootApp = false) {
     selectTab() { elements['#math'].classList.active = true; },
     selectSubtab(button) { for (const name of ['basic', 'functions']) elements['#' + name].classList.active = name === button.dataset.subtab; },
     document: { querySelector: selector => elements[selector] || tabs[/data-subtab="(\w+)"/.exec(selector)?.[1]],
-      querySelectorAll: () => [], createElement: element, addEventListener() {} },
+      getElementById: id => elements['#' + id], querySelectorAll: () => [], createElement: element, addEventListener() {} },
     localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) } });
   context.window = context;
   if (bootApp) vm.runInContext(fs.readFileSync(path.join(__dirname, '../app.js'), 'utf8'), context);
@@ -139,7 +139,7 @@ test('display integration saves definitions, evaluates Enter, updates history an
 test('page initializes without Chemistry and existing math buttons still use the calculator', () => {
   const { context, elements: e, enter } = ui(new Map(), true);
   assert.equal(e['#chemistry'], undefined);
-  assert.equal(e['#quick-phrases'].children.length, 7);
+  assert.equal(e['#letter-buttons'].children.length, 28);
   e['#functions'].classList.active = false; e['#basic'].classList.active = true;
   vm.runInContext("append('2'); append('+'); append('3'); window.evaluate();", context);
   assert.equal(e['#display'].value, '5');
@@ -151,12 +151,11 @@ test('page initializes without Chemistry and existing math buttons still use the
 
 test('function form, keypad, saved selection, editing and composition are usable without definition syntax', () => {
   const { elements: e, context } = ui();
-  const key = label => e['#function-keypad'].children.find(button => button.textContent === label).click();
+  const key = label => context.insertFunctionValue(label);
   e['#function-rule'].focus();
   for (const label of ['2', 'x', '+', '3']) key(label);
   e['#save-function'].click();
   assert.equal(e['#saved-function'].value, 'f');
-  assert.equal(e['#calculator-function'].value, 'f');
   assert.match(e['#function-result'].textContent, /Saved f\(x\)=2x\+3/);
   e['#function-arguments'].focus(); key('5');
   e['#evaluate-function'].click();
@@ -177,14 +176,14 @@ test('function form, keypad, saved selection, editing and composition are usable
 test('calculator inserts saved functions with the cursor inside parentheses and preserves other tabs', () => {
   const { elements: e, context, enter } = ui();
   enter('f(x)=2x+3');
-  e['#calculator-insert-function'].click();
+  e['#use-function'].click();
   assert.equal(e['#basic'].classList.active, true);
   assert.equal(e['#display'].value, 'f()');
   assert.equal(context.insertFunctionValue('5'), true);
   assert.equal(e['#display'].value, 'f(5)');
   context.evaluate();
   assert.equal(e['#display'].value, '13');
-  e['#calculator-insert-function'].click();
+  e['#use-function'].click();
   context.insertFunctionValue('56'); context.backspaceMath();
   assert.equal(e['#display'].value, 'f(5)');
   e['#math'].classList.active = false;

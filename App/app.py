@@ -108,6 +108,11 @@ GOOGLE_CLOUD = GoogleCloudEngine()
 class AACRequestHandler(http.server.SimpleHTTPRequestHandler):
     # Serves the PWA files and exposes speech/status endpoints for the browser frontend.
     def do_GET(self) -> None:
+        if self.path.split("?", 1)[0] in ("/", "/index.html"):
+            self.send_response(302)
+            self.send_header("Location", "/index%20(1).html")
+            self.end_headers()
+            return
         if self.path == "/api/tts-status":
             try:
                 import kokoro  # type: ignore # noqa: F401
@@ -203,7 +208,7 @@ def main() -> None:
     args = parser.parse_args()
     handler = functools.partial(AACRequestHandler, directory=str(APP_DIR))
     server = http.server.ThreadingHTTPServer(("127.0.0.1", args.port), handler)
-    url = f"http://127.0.0.1:{args.port}/index.html?v=29"
+    url = f"http://127.0.0.1:{args.port}/index%20(1).html?v=30"
     print(f"Math AAC is running at {url}")
     if not args.no_browser:
         threading.Timer(0.3, lambda: webbrowser.open(url)).start()
