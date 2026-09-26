@@ -27,7 +27,7 @@ class SpeechEndpointTests(unittest.TestCase):
 
     def test_invalid_requests_are_rejected_before_calling_speech_engines(self):
         for payload in ([], {"text": ""}, {"text": "hello", "speed": float("nan")},
-                        {"text": "hello", "volume": 101}, {"text": "hello", "voice": "bad\r\nheader"}):
+                        {"text": "hello", "volume": 101}, {"text": "hello", "engine": "remote"}, {"text": "hello", "voice": "../../file.pt"}, {"text": "hello", "voice": "bad\r\nheader"}):
             with self.subTest(payload=payload):
                 body = json.dumps(payload).encode()
                 handler = app.AACRequestHandler.__new__(app.AACRequestHandler)
@@ -35,10 +35,9 @@ class SpeechEndpointTests(unittest.TestCase):
                 handler.headers = {"Content-Length": str(len(body))}
                 handler.rfile = io.BytesIO(body)
                 handler.send_json = Mock()
-                with patch.object(app.GOOGLE_CLOUD, "synthesize") as google, patch.object(app.KOKORO, "synthesize") as kokoro:
+                with patch.object(app.KOKORO, "synthesize") as kokoro:
                     handler.do_POST()
                 self.assertEqual(handler.send_json.call_args.kwargs["status"], 400)
-                google.assert_not_called()
                 kokoro.assert_not_called()
 
     def test_invalid_body_lengths_are_rejected_without_reading(self):
@@ -53,9 +52,9 @@ class SpeechEndpointTests(unittest.TestCase):
                 handler.rfile.read.assert_not_called()
                 self.assertEqual(handler.send_json.call_args.kwargs["status"], 400)
 
-    def test_multiline_unicode_cloud_error_does_not_break_kokoro_response(self):
+    def test_default_speech_uses_local_kokoro(self):
         handler = app.AACRequestHandler.__new__(app.AACRequestHandler)
-        body = json.dumps({"text": "hello", "engine": "google"}).encode()
+        body = json.dumps({"text": "hello"}).encode()
         handler.path = "/api/speak"
         handler.headers = {"Content-Length": str(len(body))}
         handler.rfile = io.BytesIO(body)
@@ -71,8 +70,9 @@ class SpeechEndpointTests(unittest.TestCase):
             headers[key] = value
 
         handler.send_header = send_header
-        with patch.object(app.GOOGLE_CLOUD, "synthesize", side_effect=RuntimeError("Cloud failed\r\nVoice → unavailable")), patch.object(app.KOKORO, "synthesize", return_value=b"wave"):
+        with patch.object(app.KOKORO, "synthesize", return_value=b"wave") as kokoro:
             handler.do_POST()
+        kokoro.assert_called_once_with("hello", "af_heart", 1.0)
         handler.send_response.assert_called_once_with(200)
         self.assertEqual(headers["X-TTS-Engine"], "kokoro")
         self.assertEqual(handler.wfile.getvalue(), b"wave")

@@ -41,7 +41,7 @@ function makeButtons() {
   });
 }
 function loadVoices() {
-  voices = speech?.getVoices() || [];
+  voices = (speech?.getVoices() || []).filter(voice => voice.localService);
   const select = document.querySelector('#voice-select');
   let previous = select.value;
   try { previous = previous || JSON.parse(localStorage.getItem('math-aac-settings') || '{}')?.['voice-select']; } catch (_) {}
@@ -115,17 +115,12 @@ loadVoices();
 initializeSpeech();
 
 function initializeSettings() {
-  const googleVoiceSelect = document.querySelector('#google-voice');
-  if (googleVoiceSelect && !googleVoiceSelect.querySelector('option[value="en-US-Chirp3-HD-Achernar"]')) {
-    googleVoiceSelect.insertAdjacentHTML('afterbegin', '<option value="en-US-Chirp3-HD-Achernar">English US - Chirp 3 HD Achernar</option>');
-  }
-  if (googleVoiceSelect) googleVoiceSelect.value = 'en-US-Chirp3-HD-Achernar';
   let savedSettings = {};
   try {
     const saved = JSON.parse(localStorage.getItem('math-aac-settings') || '{}');
     if (saved && typeof saved === 'object' && !Array.isArray(saved)) savedSettings = saved;
   } catch (_) { /* Settings are optional; storage failures must not interrupt startup. */ }
-  const settingIds = ['theme-select', 'size-range', 'google-voice', 'kokoro-voice', 'rate-range', 'volume-range', 'voice-select'];
+  const settingIds = ['theme-select', 'size-range', 'kokoro-voice', 'rate-range', 'volume-range', 'voice-select'];
   settingIds.forEach(id => {
     const control = document.querySelector('#' + id);
     if (!control || savedSettings[id] === undefined) return;
@@ -146,11 +141,15 @@ function initializeSettings() {
   settingIds.forEach(id => document.querySelector('#' + id)?.addEventListener('input', applyGlobalSettings));
   settingIds.forEach(id => document.querySelector('#' + id)?.addEventListener('change', applyGlobalSettings));
   applyGlobalSettings();
-  fetch('/api/tts-status').then(response => response.json()).then(info => {
-    const engineStatus = document.querySelector('.engine-status');
-    if (!engineStatus) return;
-    engineStatus.textContent = info.google_configured ? 'Online: Google Cloud. Offline fallback: Kokoro.' : 'Online voice needs Google credentials. Offline fallback: Kokoro.';
-  }).catch(() => {});
+  function updateSpeechStatus() {
+    fetch('/api/tts-status').then(response => response.json()).then(info => {
+      const engineStatus = document.querySelector('.engine-status');
+      if (!engineStatus) return;
+      engineStatus.textContent = info.kokoro ? 'Local neural speech: Kokoro is ready.' : info.loading ? 'Local neural speech is warming up.' : 'Kokoro needs setup. Install local voices or use an installed device voice.';
+      if (info.loading) setTimeout(updateSpeechStatus, 2000);
+    }).catch(() => { document.querySelector('.engine-status').textContent = 'Start the local app server to use Kokoro neural speech.'; });
+  }
+  updateSpeechStatus();
 }
 
 function initializeSpeech() {
@@ -218,12 +217,14 @@ function initializeSpeech() {
     if (!window.speechSynthesis) { document.querySelector('#status').textContent = 'Speech is unavailable on this device. Your message is still in the display.'; return; }
     const utterance = new SpeechSynthesisUtterance(spoken);
     const selected = document.querySelector('#voice-select').value;
-    utterance.voice = speechSynthesis.getVoices().find(voice => voice.name === selected) || null;
+    const localVoices = speechSynthesis.getVoices().filter(voice => voice.localService);
+    utterance.voice = localVoices.find(voice => voice.name === selected) || localVoices.find(voice => /^en/i.test(voice.lang)) || localVoices[0];
+    if (!utterance.voice) { document.querySelector('#status').textContent = 'Local speech unavailable. Start the app server and install local voices.'; return; }
     utterance.rate = Number(document.querySelector('#rate-range').value) / 175;
     utterance.volume = Number(document.querySelector('#volume-range').value) / 100;
     speechSynthesis.cancel();
     speechSynthesis.speak(utterance);
-    document.querySelector('#status').textContent = 'Speaking with browser fallback.';
+    document.querySelector('#status').textContent = 'Speaking with an installed device voice.';
   }
   let speechRequest = 0, speechController = null, currentAudio = null;
   function stopCurrentAudio() {
@@ -251,7 +252,7 @@ function initializeSpeech() {
     spoken = spoken === '!' ? 'factorial' : spoken.replace(/(\d|\)|\b[a-z])(!+)/gi,
       (_match, operand, marks) => operand + ' factorial '.repeat(marks.length));
     for (const [symbol, words] of speechWords) spoken = spoken.replaceAll(symbol, words);
-    document.querySelector('#status').textContent = 'Preparing Google Cloud speech...';
+    document.querySelector('#status').textContent = 'Preparing local speech...';
     const controller = new AbortController();
     speechController = controller;
     const timeout = setTimeout(() => controller.abort(), 30000);
@@ -263,16 +264,15 @@ function initializeSpeech() {
       browserSpeak(spoken);
     };
     try {
-      const response = await fetch('/api/speak', { signal: controller.signal, method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({engine: 'google', text: spoken, voice: document.querySelector('#google-voice').value, kokoro_voice: document.querySelector('#kokoro-voice').value, speed: Number(document.querySelector('#rate-range').value) / 175, volume: Number(document.querySelector('#volume-range').value)}) });
+      const response = await fetch('/api/speak', { signal: controller.signal, method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({engine: 'kokoro', text: spoken, voice: document.querySelector('#kokoro-voice').value || 'af_heart', speed: Number(document.querySelector('#rate-range').value) / 175, volume: Number(document.querySelector('#volume-range').value)}) });
       if (!response.ok) throw new Error('Speech service unavailable');
       const blob = await response.blob();
       if (requestId !== speechRequest) return;
       const audio = new Audio(URL.createObjectURL(blob));
       currentAudio = audio;
-      const usedEngine = response.headers.get('X-TTS-Engine') || 'cloud';
-      const usedVoice = response.headers.get('X-TTS-Voice') || document.querySelector('#google-voice').value;
-      const fallback = response.headers.get('X-TTS-Fallback-Reason');
-      if (usedEngine === 'kokoro') audio.volume = Number(document.querySelector('#volume-range').value) / 100;
+      const usedEngine = response.headers.get('X-TTS-Engine') || 'kokoro';
+      const usedVoice = response.headers.get('X-TTS-Voice') || document.querySelector('#kokoro-voice').value || 'af_heart';
+      audio.volume = Number(document.querySelector('#volume-range').value) / 100;
       audio.onended = () => { URL.revokeObjectURL(audio.src); if (currentAudio === audio) currentAudio = null; };
       audio.onerror = () => {
         if (requestId !== speechRequest) return;
@@ -280,7 +280,7 @@ function initializeSpeech() {
       };
       await audio.play();
       if (requestId !== speechRequest) return;
-      document.querySelector('#status').textContent = fallback ? `Speaking with ${usedEngine} (${usedVoice}). Google fallback: ${fallback}` : `Speaking with ${usedEngine}: ${usedVoice}`;
+      document.querySelector('#status').textContent = `Speaking locally with ${usedEngine}: ${usedVoice}`;
     } catch (_error) {
       fallbackToBrowser();
     } finally {

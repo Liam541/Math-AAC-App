@@ -46,13 +46,17 @@ The shared speech bar and number pad work across every math screen. Tap a tool f
 
 The compact result line retains the last solved equation. **Speak answer** reads its answer; **Stop** cancels speech, including pending requests. **Undo** restores recent edits and calculations. Fraction and power builders are under Algebra.
 
-**Settings** and **Appearance** remain in the top navigation. Settings controls online/offline/browser voices, speed, volume, and voice testing. Appearance controls theme, text size, button movement, and live previews. Preferences and named functions are saved locally. Preset phrases and sidebars have been removed to keep the workspace focused on math.
+**Settings** and **Appearance** remain in the top navigation. Settings controls local neural and installed device voices, speed, volume, and voice testing. Appearance controls theme, text size, button movement, and live previews. Preferences and named functions are saved locally. Preset phrases and sidebars have been removed to keep the workspace focused on math.
 
 The layout is designed for laptop viewports of at least 1280 × 650 CSS pixels. Controls stay visible at normal zoom and the supported text sizes; exceptionally small windows or high browser zoom use a flowing layout to preserve access. Long result text can scroll inside its output without moving the controls.
 
 ### Text-to-Speech
 
-Entered responses can be read aloud using text-to-speech functionality.
+Speech uses local Kokoro neural TTS, with Heart as the default voice. The server keeps the model loaded, warms it at startup, and caches up to 16 MiB / 64 recent utterances in memory for quick repeats. Speed and volume remain adjustable. No cloud speech credentials are needed.
+
+Install dependencies once with `python -m pip install -r App/requirements-kokoro.txt` (on Windows, use `--target C:\MathAAC-Kokoro` for a short installation path if needed). Then run `python App/app.py --setup-voices` while online to download the model, pronunciation resources, and all nine voices. Start normally with `python App/app.py`; normal operation uses the downloaded model offline. US and UK voices use their corresponding pronunciation pipelines. Setup requires internet access, disk space, and may take several minutes.
+
+If Kokoro is unavailable, speech falls back only to an installed local device voice. Remote browser voices are excluded. The local Python server must remain running for Kokoro; opening the HTML alone uses device fallback. Voice quality and synthesis speed depend on the device.
 
 This allows users to communicate their mathematical responses without needing to verbally produce the response themselves.
 

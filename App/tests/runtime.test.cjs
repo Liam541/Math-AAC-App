@@ -65,7 +65,7 @@ function browser({ storage = null, speech = true } = {}) {
       return new Promise((resolve, reject) => requests.push({ resolve, reject, options }));
     },
   });
-  if (speech) context.speechSynthesis = { getVoices: () => [], cancel() {}, speak: utterance => fallback.push(utterance.text) };
+  if (speech) context.speechSynthesis = { getVoices: () => [{ name: 'Device voice', lang: 'en-US', localService: true }], cancel() {}, speak: utterance => fallback.push(utterance.text) };
   context.window = context;
   const boot = () => {
     pageScripts.forEach(source => vm.runInContext(source, context));
@@ -414,4 +414,24 @@ test('touch template fields restore the original destination on insertion', () =
   assert.equal(b.context.sharedMath.target().id, 'integral-expression');
   assert.equal(e['#template-first'].value, '1');
   assert.equal(e['#template-second'].value, '2');
+});
+
+test('speech requests select Kokoro without cloud settings', async () => {
+  const b = browser(); b.boot();
+  const pending = b.context.speak('Hello');
+  const payload = JSON.parse(b.requests[0].options.body);
+  assert.equal(payload.engine, 'kokoro');
+  assert.equal(payload.voice, 'af_heart');
+  assert.equal(b.elements['#google-voice'], undefined);
+  b.requests[0].resolve(b.response); await pending;
+});
+
+test('fallback never selects a remote browser voice', async () => {
+  const b = browser(); b.boot();
+  b.context.speechSynthesis.getVoices = () => [{ name: 'Remote voice', localService: false }];
+  b.context.loadVoices();
+  const pending = b.context.speak('Hello');
+  b.requests[0].reject(Error('No local server')); await pending;
+  assert.equal(b.fallback.length, 0);
+  assert.match(b.elements['#status'].textContent, /Local speech unavailable/);
 });

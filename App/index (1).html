@@ -4,7 +4,7 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#1269d3"><meta name="mobile-web-app-capable" content="yes">
   <title>Math AAC Workspace</title>
-  <link rel="manifest" href="manifest.json"><link rel="stylesheet" href="styles.css?v=30">
+  <link rel="manifest" href="manifest.json"><link rel="stylesheet" href="styles.css?v=31">
 </head>
 <body>
   <header class="topbar">
@@ -114,10 +114,10 @@
     </section>
     <section class="subject" id="spell" aria-label="Letters"><div class="letter-grid" id="letter-buttons"></div></section>
     <section class="subject" id="appearance" aria-label="Appearance"><div class="settings-grid"><div class="form-card"><label for="theme-select">Color theme</label><select id="theme-select"><option value="light">Bright blue</option><option value="high">High contrast</option><option value="warm">Warm</option></select><label for="size-range">Text size</label><input id="size-range" type="range" min="16" max="24" value="18"></div><div class="form-card"><label class="check"><input type="checkbox" id="calculator-still" checked> Keep buttons still</label><label class="check"><input type="checkbox" id="calculator-preview" checked> Show answers while typing</label><p class="hint">Large keys stay in the same place on every math tool.</p></div></div></section>
-    <section class="subject" id="settings" aria-label="Speech settings"><div class="settings-grid"><div class="form-card"><label for="google-voice">Online voice</label><select id="google-voice"><option value="en-US-Neural2-F">English US - Neural Female</option><option value="en-US-Neural2-C">English US - Neural Male</option><option value="en-US-Wavenet-F">English US - Wavenet Female</option><option value="en-US-Wavenet-D">English US - Wavenet Male</option><option value="en-GB-Neural2-A">English UK - Neural Female</option><option value="en-GB-Neural2-B">English UK - Neural Male</option></select><label for="kokoro-voice">Offline voice</label><select id="kokoro-voice"><option value="af_heart">Heart</option><option value="af_bella">Bella</option><option value="af_sarah">Sarah</option><option value="am_adam">Adam</option><option value="am_michael">Michael</option><option value="bf_emma">Emma</option><option value="bf_isabella">Isabella</option><option value="bm_george">George</option><option value="bm_lewis">Lewis</option></select><label for="voice-select">Browser fallback voice</label><select id="voice-select"></select></div><div class="form-card"><label for="rate-range">Speech speed</label><input id="rate-range" type="range" min="100" max="240" value="175"><label for="volume-range">Volume</label><input id="volume-range" type="range" min="30" max="100" value="100"><button class="button blue" data-action="test-voice">Test voice</button><p class="engine-status hint"></p></div></div></section>
+    <section class="subject" id="settings" aria-label="Speech settings"><div class="settings-grid"><div class="form-card"><label for="kokoro-voice">Local neural voice (Kokoro)</label><select id="kokoro-voice"><option value="af_heart">Heart</option><option value="af_bella">Bella</option><option value="af_sarah">Sarah</option><option value="am_adam">Adam</option><option value="am_michael">Michael</option><option value="bf_emma">Emma</option><option value="bf_isabella">Isabella</option><option value="bm_george">George</option><option value="bm_lewis">Lewis</option></select><label for="voice-select">Installed device fallback voice</label><select id="voice-select"></select></div><div class="form-card"><label for="rate-range">Speech speed</label><input id="rate-range" type="range" min="100" max="240" value="175"><label for="volume-range">Volume</label><input id="volume-range" type="range" min="30" max="100" value="100"><button class="button blue" data-action="test-voice">Test voice</button><p class="engine-status hint"></p></div></div></section>
     <p class="status" id="status" role="status" aria-live="polite">Ready.</p>
   </main>
-  <script src="app.js?v=30"></script><script>initializeSettings();</script>
-  <script src="functions.js?v=30"></script><script src="shared-input.js?v=30"></script><script src="calculator-access.js?v=30"></script>
+  <script src="app.js?v=31"></script><script>initializeSettings();</script>
+  <script src="functions.js?v=31"></script><script src="shared-input.js?v=31"></script><script src="calculator-access.js?v=31"></script>
 </body>
 </html>
