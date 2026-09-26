@@ -2,7 +2,7 @@
   "name": "Math AAC Workspace",
   "short_name": "Math AAC",
   "description": "Accessible mathematics and speech tools.",
-  "start_url": "/index%20(1).html",
+  "start_url": "/index.html",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",

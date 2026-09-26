@@ -96,7 +96,7 @@ function ui(storage = new Map(), bootApp = false) {
       this.setSelectionRange(start + text.length, start + text.length);
     },
     addEventListener(name, callback) { this.handlers[name] = callback; }, setAttribute() {} });
-  const html = fs.readFileSync(path.join(__dirname, '../index (1).html'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
   const elements = Object.fromEntries([...html.matchAll(/id="([^"]+)"/g)].map(match => ['#' + match[1], element()]));
   const tabs = { basic: { dataset: { subtab: 'basic' } }, functions: { dataset: { subtab: 'functions' } } };
   elements['#function-name'].value = 'f'; elements['#function-parameters'].value = 'x';

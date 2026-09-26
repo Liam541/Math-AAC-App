@@ -24,6 +24,7 @@
       values: Object.fromEntries(['display', ...Object.keys(fields)].map(id => [id, get(id).value])),
       target: target?.id, publication, start: bar.selectionStart, end: bar.selectionEnd,
       answer: window.mathCalculator.answer,
+      definitions: window.mathCalculator.serialize(),
       solution: window.calculatorAccess?.snapshot()
     };
     if (JSON.stringify(state) === JSON.stringify(undoStack.at(-1))) return;
@@ -47,6 +48,7 @@
     bar.setSelectionRange(state.start ?? bar.value.length, state.end ?? bar.value.length);
     publication = state.publication;
     window.mathCalculator.answer = state.answer;
+    if (state.definitions !== window.mathCalculator.serialize()) window.restoreFunctions(state.definitions);
     get('shared-use-answer').hidden = publication?.answer === undefined;
     get('shared-use-answer').textContent = /\+ C$/.test(publication?.text || '') ? 'Use antiderivative (C = 0)' : 'Use answer';
     window.calculatorAccess?.restore(state.solution);
@@ -59,12 +61,14 @@
   function selection(from, to) { to.setSelectionRange(from.selectionStart ?? from.value.length, from.selectionEnd ?? from.value.length); }
   function choose(field) {
     const editingField = field || target;
-    if (field || target) invalidate();
+    invalidate();
     target = field;
     if (field) { bar.value = field.value; selection(field, bar); }
     get('field-context').hidden = !field;
     for (const id of Object.keys(fields)) get(id).classList.toggle('linked-math-field', id === field?.id);
     get('editing-location').textContent = 'Editing: ' + (field ? fields[field.id] : 'TTS bar / calculator');
+    bar.placeholder = field ? 'Input ' + fields[field.id].toLowerCase() : 'Input math to solve or speak';
+    bar.setAttribute('aria-label', field ? 'Editing ' + fields[field.id] : 'Math and speech bar');
     get('return-to-field').hidden = !field;
     get('return-to-field').textContent = field ? 'Return to ' + fields[field.id].split(' · ')[0].toLowerCase() : 'Return to field';
     if (editingField) window.calculatorAccess?.editing();
@@ -81,8 +85,8 @@
     window.calculatorAccess?.editing();
     window.scheduleCalculatorPreview();
   }
-  function edit(text) {
-    checkpoint();
+  function edit(text, record = true) {
+    if (record) checkpoint();
     bar.setRangeText(text, bar.selectionStart ?? bar.value.length, bar.selectionEnd ?? bar.value.length, 'end');
     changed(); bar.focus();
   }
@@ -147,7 +151,84 @@
     }
   };
   document.querySelectorAll('[data-result-to-bar]').forEach(button => {
-    button.onclick = () => { checkpoint(); window.sharedMath.publish(get(button.dataset.resultToBar).textContent); window.calculatorAccess?.editing(); };
+    const result = get(button.dataset.resultToBar);
+    button.onclick = () => {
+      if (result.dataset.valid !== 'true') { setStatus('Calculate a valid result before sending it to the bar.'); return; }
+      checkpoint(); window.sharedMath.publish(result.textContent); window.calculatorAccess?.editing();
+    };
+    get('discrete').querySelectorAll('input, select').forEach(field => {
+      for (const event of ['input', 'change']) field.addEventListener(event, () => { result.dataset.valid = 'false'; });
+    });
   });
   choose(null);
+})();
+
+/* Quiet previews, explicit answer speech, and expression templates. */
+(function () {
+  'use strict';
+  const get = id => document.getElementById(id), bar = get('display');
+  const preferenceIds = ['calculator-still', 'calculator-preview'];
+  let preferences = {}, solution = null, templateDestination = null;
+  try { preferences = JSON.parse(localStorage.getItem('math-aac-calculator-access-v1') || '{}').preferences || {}; } catch (_) {}
+  if (!preferences || typeof preferences !== 'object' || Array.isArray(preferences)) preferences = {};
+  function applyPreferences() {
+    for (const id of preferenceIds) preferences[id] = get(id).checked;
+    document.body.classList.toggle('still-keys', preferences['calculator-still']);
+    get('calculator-result').setAttribute('aria-live', 'off');
+  }
+  for (const id of preferenceIds) {
+    get(id).checked = typeof preferences[id] === 'boolean' ? preferences[id] : true;
+    get(id).onchange = () => {
+      applyPreferences();
+      try { localStorage.setItem('math-aac-calculator-access-v1', JSON.stringify({ preferences })); } catch (_) {}
+      window.scheduleCalculatorPreview();
+    };
+  }
+  function render() {
+    get('speak-answer').disabled = !solution;
+    if (solution) get('calculator-result').textContent = solution.problem + (solution.approximate ? ' ≈ ' : ' = ') + solution.answer;
+  }
+  const editing = () => { solution = null; render(); };
+  get('speak-answer').onclick = () => { if (solution) window.speak((solution.approximate ? 'approximately ' : '') + solution.answer); };
+  get('calculator-stop').onclick = () => window.stopSpeaking();
+  get('calculator-template').onchange = () => {
+    const fraction = get('calculator-template').value === 'fraction';
+    get('template-first-label').textContent = fraction ? 'Numerator' : 'Base';
+    get('template-second-label').textContent = fraction ? 'Denominator' : 'Exponent';
+  };
+  get('calculator-insert-template').onclick = () => {
+    for (const id of ['template-first', 'template-second']) {
+      if (!get(id).value.trim()) { setStatus('Enter both values first.'); get(id).focus(); return; }
+    }
+    const a = get('template-first').value.trim(), b = get('template-second').value.trim();
+    window.sharedMath.checkpoint();
+    if (templateDestination) {
+      window.sharedMath.choose(templateDestination.field);
+      bar.value = templateDestination.value;
+      bar.setSelectionRange(templateDestination.start, templateDestination.end);
+    } else window.sharedMath.choose(null);
+    window.sharedMath.edit(`((${a})${get('calculator-template').value === 'fraction' ? '/' : '^'}(${b}))`, false);
+    templateDestination = null;
+  };
+  for (const id of ['template-first', 'template-second']) get(id).addEventListener('keydown', event => {
+    if (event.key === 'Enter') { event.preventDefault(); get('calculator-insert-template').click(); }
+  });
+  window.calculatorAccess = {
+    editing, subjectChanged: applyPreferences,
+    templateEntering() {
+      if (!window.sharedMath.target()?.id.startsWith('template-')) templateDestination = {
+        field: window.sharedMath.target(), value: bar.value, start: bar.selectionStart, end: bar.selectionEnd
+      };
+    },
+    refresh() { if (solution && solution.display !== bar.value) solution = null; render(); return !!solution; },
+    snapshot: () => solution,
+    restore(value) { solution = value || null; render(); },
+    solved(problem, answer, approximate = false) { solution = { problem, answer, approximate, display: bar.value }; render(); },
+    friendlyError(error) {
+      if (error.message === 'Expected ")".') return 'Add a closing parenthesis ).';
+      if (error.message === 'Expected a number, variable, or function.') return 'Add a number or expression after the operator.';
+      return error.message;
+    }
+  };
+  applyPreferences(); render();
 })();

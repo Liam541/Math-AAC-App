@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const read = file => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
-const html = read('index (1).html');
+const html = read('index.html');
 const pageScripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)].map(([, attributes, body]) => {
   const src = /src="([^"]+)"/.exec(attributes)?.[1];
   return src ? read(src.split('?')[0]) : body;
@@ -434,4 +434,61 @@ test('fallback never selects a remote browser voice', async () => {
   b.requests[0].reject(Error('No local server')); await pending;
   assert.equal(b.fallback.length, 0);
   assert.match(b.elements['#status'].textContent, /Local speech unavailable/);
+});
+
+test('form evaluation and definition saving each undo in a single step', () => {
+  const stored = new Map();
+  const b = browser({ storage: { getItem: key => stored.get(key), setItem: (key, value) => stored.set(key, value) } }); b.boot();
+  const e = b.elements;
+  e['#function-rule'].value = '2x+3'; e['#function-rule'].focus();
+  e['#save-function'].click();
+  assert.equal(b.context.mathCalculator.definitions.size, 1);
+  e['#calculator-undo'].click();
+  assert.equal(e['#display'].value, '2x+3');
+  assert.equal(b.context.sharedMath.target().id, 'function-rule');
+  assert.equal(b.context.mathCalculator.definitions.size, 0);
+  assert.equal(stored.get('math-aac-functions-v1'), '[]');
+  e['#save-function'].click();
+  e['#function-arguments'].value = '5'; e['#function-arguments'].focus();
+  e['#evaluate-function'].click(); assert.equal(e['#display'].value, '13');
+  e['#calculator-undo'].click();
+  assert.equal(e['#display'].value, '5');
+  assert.equal(b.context.sharedMath.target().id, 'function-arguments');
+});
+
+test('invalid function saves preserve the linked bar and do not add an Undo entry', () => {
+  const b = browser(); b.boot(); const e = b.elements;
+  e['#function-rule'].value = '2+'; e['#function-rule'].focus();
+  e['#save-function'].click();
+  assert.equal(e['#display'].value, '2+');
+  assert.equal(b.context.sharedMath.target().id, 'function-rule');
+  assert.equal(e['#calculator-undo'].disabled, true);
+});
+
+test('graph selection and window reset keep the linked bar synchronized and undoable', () => {
+  const b = browser(); b.boot(); const e = b.elements;
+  b.context.mathCalculator.define('f(x)=x+1');
+  e['#graph-expression'].focus(); e['#graph-function'].value = 'f'; e['#graph-function'].onchange();
+  assert.equal(e['#display'].value, 'f(x)');
+  e['#calculator-undo'].click(); assert.equal(e['#display'].value, 'x^2');
+  e['#graph-xmin'].value = '-3'; e['#graph-xmin'].focus();
+  e['#graph-reset'].click(); assert.equal(e['#display'].value, '-10');
+  e['#calculator-undo'].click(); assert.equal(e['#display'].value, '-3');
+});
+
+test('speech explains comparisons, superscripts, scientific notation and empty input', async () => {
+  const b = browser(); b.boot();
+  await b.context.speak('  ');
+  assert.equal(b.requests.length, 0);
+  assert.match(b.elements['#status'].textContent, /Input math or a message/);
+  for (const [source, expected] of [
+    ['x!=2', 'x not equal to 2'], ['2<=3', '2 less than or equal to 3'],
+    ['x²', 'x squared'], ['1E-3', '1 times ten to the power of minus 3'],
+    ['floor(2.5)', 'floor of 2.5 close parenthesis'], ['5%2', '5 modulo 2'],
+    ['Π A ∖ B', 'product A set difference B'], ['Thank you!', 'Thank you!']
+  ]) {
+    const pending = b.context.speak(source), request = b.requests.at(-1);
+    assert.equal(JSON.parse(request.options.body).text.replace(/\s+/g, ' ').trim(), expected);
+    request.resolve(b.response); await pending;
+  }
 });

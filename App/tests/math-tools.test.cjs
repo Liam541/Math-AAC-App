@@ -117,7 +117,7 @@ function screen() {
     querySelectorAll() { return this.id === 'calculus' ? ['lower', 'upper', 'expression', 'variable'].map(part => elements['integral-' + part]) : []; }
     get selectedOptions() { return [{ textContent: this.value }]; }
   }
-  const html = fs.readFileSync(path.join(__dirname, '../index (1).html'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
   const elements = Object.fromEntries([...html.matchAll(/id="([^"]+)"/g)].map(m => [m[1], new Element(m[1])]));
   for (const m of html.matchAll(/<input\b[^>]*\bid="([^"]+)"[^>]*value="([^"]*)"/g)) elements[m[1]].value = m[2];
   const tab = new Element();

@@ -517,6 +517,11 @@
       statusArea.textContent = 'Saved functions could not be loaded. You can define functions for this session.';
     }
     renderFunctions();
+    window.restoreFunctions = saved => {
+      calculator.restore(saved);
+      renderFunctions();
+      try { localStorage.setItem(storageKey, calculator.serialize()); } catch (_) {}
+    };
     const formatResult = result => result.kind === 'symbolic' ? result.value
       : Number.isSafeInteger(result.value) ? String(result.value) : String(Number(result.value.toPrecision(12)));
     window.previewCalculator = () => {
@@ -540,15 +545,16 @@
       previewTimer = setTimeout(window.previewCalculator, 200);
     };
     input.addEventListener('input', window.scheduleCalculatorPreview);
-    window.evaluate = function () {
+    window.evaluate = function (source) {
       const undoPoint = window.sharedMath?.checkpoint();
       clearTimeout(previewTimer);
       try {
-        const expression = window.sharedMath?.current()?.source || input.value;
+        const expression = source ?? (window.sharedMath?.current()?.source || input.value);
         const result = calculator.evaluate(expression);
         window.sharedMath?.choose(null);
         if (result.kind === 'definition') {
           const definition = result.definition;
+          input.value = definition.source;
           let saved = true;
           try { localStorage.setItem(storageKey, calculator.serialize()); } catch (_) { saved = false; }
           renderFunctions(definition.name);
@@ -637,9 +643,7 @@
       return true;
     };
     get('save-function').addEventListener('click', () => {
-      window.sharedMath?.checkpoint();
-      input.value = `${get('function-name').value.trim()}(${get('function-parameters').value.trim()})=${rule.value.trim()}`;
-      window.evaluate();
+      window.evaluate(`${get('function-name').value.trim()}(${get('function-parameters').value.trim()})=${rule.value.trim()}`);
     });
     rule.addEventListener('keydown', event => {
       if (event.key === 'Enter') { event.preventDefault(); get('save-function').click(); }
@@ -647,6 +651,7 @@
     get('edit-function').addEventListener('click', () => {
       const definition = selected();
       if (!definition) return;
+      window.sharedMath?.checkpoint();
       get('function-name').value = definition.name;
       get('function-parameters').value = definition.parameters.join(',');
       rule.value = definition.body;
@@ -657,6 +662,7 @@
     function useInCalculator(id) {
       const definition = selected(id);
       if (!definition) return;
+      window.sharedMath?.checkpoint();
       window.sharedMath?.choose(null);
       openMath('basic');
       // A completed definition/result is replaced; unfinished arithmetic keeps its insertion point.
@@ -668,7 +674,10 @@
 
     get('insert-function').addEventListener('click', () => {
       const definition = selected();
-      if (definition) insertAt(window.sharedMath ? input : keypadInput, definition.name + '()', true);
+      if (definition) {
+        window.sharedMath?.checkpoint();
+        insertAt(window.sharedMath ? input : keypadInput, definition.name + '()', true);
+      }
     });
     function evaluateSelected(compose) {
       const outer = selected();
@@ -678,8 +687,7 @@
       const expression = compose
         ? `${outer.name}(${inner.name}(${argumentsInput.value}))`
         : `${outer.name}(${argumentsInput.value})`;
-      input.value = expression;
-      window.evaluate();
+      window.evaluate(expression);
       if (!statusArea.textContent.startsWith('Could not evaluate:')) report(expression + ' = ' + input.value);
     }
     get('evaluate-function').addEventListener('click', () => evaluateSelected(false));
@@ -708,7 +716,8 @@
     const formatted = n => Number.isSafeInteger(n) ? String(n) : String(Number(n.toPrecision(12)));
     function report(id, text) { get(id).textContent = text; setStatus(text); }
     function run(id, action) {
-      try { report(id, action()); } catch (error) { report(id, 'Could not calculate: ' + error.message); }
+      try { report(id, action()); get(id).dataset.valid = 'true'; }
+      catch (error) { report(id, 'Could not calculate: ' + error.message); get(id).dataset.valid = 'false'; }
     }
     function insert(field, text) {
       field.setRangeText(text, field.selectionStart ?? field.value.length, field.selectionEnd ?? field.value.length, 'end');
@@ -744,8 +753,8 @@
     }
     get('integral-indefinite').onclick = () => setIntegralMode(false);
     get('integral-definite').onclick = () => setIntegralMode(true);
-    function solveIntegral(quiet = false) {
-      const undoPoint = !quiet ? window.sharedMath?.checkpoint() : null;
+    function solveIntegral(quiet = false, record = true) {
+      const undoPoint = !quiet && record ? window.sharedMath?.checkpoint() : null;
       clearTimeout(integralTimer);
       if (quiet && window.calculatorAccess && !get('calculator-preview').checked) {
         get('integral-result').textContent = 'Press Solve when you are ready.';
@@ -789,14 +798,16 @@
     window.solveIntegral = solveIntegral;
     get('integral-calculate').onclick = () => solveIntegral();
     get('integral-example').onclick = () => {
+      window.sharedMath?.checkpoint();
       get('integral-expression').value = 'x^2';
       get('integral-variable').value = 'x';
       get('integral-lower').value = '0';
       get('integral-upper').value = '3';
       setIntegralMode(true);
-      solveIntegral();
+      solveIntegral(false, false);
     };
     window.openIntegral = () => {
+      window.sharedMath?.checkpoint();
       selectTab('math'); selectSubtab(document.querySelector('[data-subtab="calculus"]'));
       const source = window.sharedMath?.current()?.source || value('display');
       if (source) {
@@ -845,6 +856,7 @@
       for (const [group, ops] of Object.entries(groups)) get('discrete-' + group).hidden = !ops.includes(op);
       if (window.sharedMath?.target()?.closest('[hidden]')) window.sharedMath.choose(null);
       get('discrete-result').textContent = 'Enter values for ' + get('discrete-operation').selectedOptions[0].textContent + '.';
+      get('discrete-result').dataset.valid = 'false';
     }
     get('discrete-operation').onchange = discreteMode;
     get('discrete-calculate').onclick = () => run('discrete-result', () => {
@@ -879,7 +891,12 @@
       select.value = previous;
     }
     get('graph-function').onchange = () => {
-      if (value('graph-function')) { get('graph-expression').value = value('graph-function') + '(x)'; plot(); }
+      if (value('graph-function')) {
+        window.sharedMath?.checkpoint();
+        get('graph-expression').value = value('graph-function') + '(x)';
+        window.sharedMath?.changed(get('graph-expression'));
+        plot();
+      }
     };
     const svg = get('graph-canvas');
     function draw(tag, attrs, text, parent = svg) {
@@ -930,11 +947,20 @@
       });
     }
     get('graph-plot').onclick = plot;
-    get('graph-reset').onclick = () => { for (const axis of ['x', 'y']) { get('graph-' + axis + 'min').value = '-10'; get('graph-' + axis + 'max').value = '10'; } plot(); };
+    get('graph-reset').onclick = () => {
+      window.sharedMath?.checkpoint();
+      for (const axis of ['x', 'y']) { get('graph-' + axis + 'min').value = '-10'; get('graph-' + axis + 'max').value = '10'; }
+      const target = window.sharedMath?.target();
+      if (target?.id.startsWith('graph-')) window.sharedMath.changed(target);
+      plot();
+    };
     get('graph-use-display').onclick = () => {
       const source = get('display').value.trim();
+      if (!source) { setStatus('Input a graph expression in the math bar first.'); return; }
+      window.sharedMath?.checkpoint();
       const definition = /^([A-Za-z][A-Za-z0-9_]*)\s*\([^)]*\)\s*=/.exec(source);
       get('graph-expression').value = definition && calculator.definitions.has(definition[1]) ? definition[1] + '(x)' : source.replace(/^y\s*=\s*/, '');
+      window.sharedMath?.changed(get('graph-expression'));
       plot();
     };
     get('graph-evaluate').onclick = () => run('graph-result', () => {

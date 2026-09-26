@@ -1,220 +1,75 @@
-# Mind2Voice – Math-Focused AAC Application
+﻿# Mind2Voice — Math AAC
 
-## Overview
+A local web app for entering, calculating, and speaking mathematics. It includes a shared number pad, scientific and Greek symbols, named functions, integrals, discrete math, and graphs.
 
-**Mind2Voice** is an Augmentative and Alternative Communication (AAC) application designed to make mathematical communication more accessible for individuals who are nonverbal or have limited speech.
+## Run
 
-Many existing AAC tools focus primarily on everyday communication. Communicating mathematics can introduce additional challenges because students may need to express equations, mathematical symbols, functions, and other concepts that can be difficult to enter using a conventional AAC interface.
+```text
+python App/app.py
+```
 
-Mind2Voice addresses this problem by providing a **math-focused AAC interface** that combines communication tools with mathematical input and calculation features.
+The app opens at http://127.0.0.1:8765/. Use `--no-browser` to start only the server, or `--port 8766` to choose another port. Keep the server running for local neural speech. The standard entry page is `App/index.html`; old `index (1).html` bookmarks redirect to it.
 
----
+### Install local neural voices
 
-## Project Goals
+```text
+python -m pip install -r App/requirements-kokoro.txt
+python App/app.py --setup-voices
+```
 
-The primary goal of Mind2Voice is to make mathematical communication **simpler, more accessible, and more personalized**.
+Setup downloads the Kokoro model, pronunciation resources, and nine voices while online. Normal operation uses those resources offline. On Windows, `pip install --target C:\MathAAC-Kokoro -r App/requirements-kokoro.txt` avoids long installation paths. Set `KOKORO_PACKAGE_DIR` if using another location.
 
-The application is intended to:
+Heart is the default voice. Settings provides voice, speed, volume, and a voice test. The model stays loaded and caches recent utterances (up to 16 MiB / 64 entries). If Kokoro is unavailable, speech falls back to an installed local device voice; remote browser voices are excluded. Opening the HTML without the server uses this fallback.
 
-* Provide an accessible way to enter mathematical expressions
-* Allow users to communicate mathematical responses through text-to-speech
-* Provide mathematical calculation tools
-* Allow the interface to be personalized for individual users
-* Support mathematical communication from basic arithmetic through higher-level mathematics
-* Give students greater independence when participating in mathematics and STEM courses
+## Use the workspace
 
----
+- **Math and speech bar:** input math to solve or speak. Speak reads the entry; Speak answer reads the last solved answer. Stop cancels playback and pending speech requests. Clear erases the current entry; Undo restores edits and calculations, including function definitions.
+- **Shared fields:** tap a tool field, then use the number pad or borrow symbols from Scientific, Algebra, Greek, or Letters. The editing label identifies the destination. Return to field opens its screen; Done editing field returns to independent bar entry.
+- **Solve:** calculates the linked tool, or evaluates independent bar input. Enter works too. Tool-specific buttons such as Solve integral, Calculate, Plot, and Evaluate act on their forms.
+- **Algebra:** build a fraction or power and insert it at the original editing position. Equality and comparison symbols can be spoken; general equation solving and comparison evaluation are not supported.
+- **Integrals:** choose definite or indefinite, enter the expression and variable, and supply bounds when needed. Solved notation appears in the bar. Use answer reuses the number; Use antiderivative (C = 0) reuses a particular antiderivative. Symbolic integration supports a limited set of forms; definite integrals are numerical approximations.
+- **Discrete:** finite sums/products, combinations/permutations, set operations, and Boolean logic. Calculate before sending a result to the speech bar. Changed inputs and errors must be recalculated first.
+- **Graph:** plot a rule or saved one-variable function, adjust the window, and use Find y to evaluate a point. Graphs and integrals use radians; the scientific calculator can switch between radians and degrees.
+- **Appearance:** change theme, text size, button movement, and live previews. Preferences and named functions save in this browser when local storage is available.
 
-## Features
+### Named functions
 
-### Math Board
+Use Functions → Define to enter a name, variables, and rule. Evaluate accepts values; Compose combines an outer and inner function. Edit rule returns to the definition form. Use in calculator inserts a call with the cursor inside its parentheses.
 
-The Math Board provides a touch-based interface for entering:
+You can also enter these in the bar and press Solve:
 
-* Numbers
-* Letters
-* Mathematical symbols
-* Equations
-* Greek letters
-* Other mathematical notation
+```text
+f(x)=2x+3
+f(5)          → 13
+g(x)=x^2
+f(g(2))       → 11
+h(x,y)=x^2+y^2
+h(3,4)        → 25
+```
 
-Different mathematical boards can be selected depending on what the user needs to enter.
+Implied multiplication (`2x`, `2(x+1)`), powers (`^` or `**`), and scientific functions work. Use `x*y` for products of distinct named variables. `y=x^2` defines `f(x)`. `log` and `ln` are natural logarithms; `log10` is base ten. `Ans` is the last numeric answer and is captured when saving a definition. Invalid definitions leave existing definitions intact. Clear does not delete saved functions.
 
-The shared speech bar and number pad work across every math screen. Tap a tool field, then borrow symbols from **Scientific**, **Algebra**, **Greek**, or **Letters**. The outlined field and editing label show where input goes. **Return to field** reopens its screen; **Done editing field** returns to independent bar entry.
+The layout targets laptop viewports of at least 1280 × 650 CSS pixels, with text sizes from 16 to 24 px. Smaller widths use a flowing layout.
 
-**Basic** opens first. Advanced tools use short, focused screens: integral bounds and expression, discrete operations, function Define/Evaluate/Compose pages, and graph Plot/Window pages. **Solve** calculates the selected tool. Integral results appear in the bar with the full expression and answer, ready for **Speak**. **Use answer** reuses the result; **Use antiderivative (C = 0)** reuses a particular antiderivative. Discrete results can be sent to the bar as well.
+## Source and checks
 
-The compact result line retains the last solved equation. **Speak answer** reads its answer; **Stop** cancels speech, including pending requests. **Undo** restores recent edits and calculations. Fraction and power builders are under Algebra.
-
-**Settings** and **Appearance** remain in the top navigation. Settings controls local neural and installed device voices, speed, volume, and voice testing. Appearance controls theme, text size, button movement, and live previews. Preferences and named functions are saved locally. Preset phrases and sidebars have been removed to keep the workspace focused on math.
-
-The layout is designed for laptop viewports of at least 1280 × 650 CSS pixels. Controls stay visible at normal zoom and the supported text sizes; exceptionally small windows or high browser zoom use a flowing layout to preserve access. Long result text can scroll inside its output without moving the controls.
-
-### Text-to-Speech
-
-Speech uses local Kokoro neural TTS, with Heart as the default voice. The server keeps the model loaded, warms it at startup, and caches up to 16 MiB / 64 recent utterances in memory for quick repeats. Speed and volume remain adjustable. No cloud speech credentials are needed.
-
-Install dependencies once with `python -m pip install -r App/requirements-kokoro.txt` (on Windows, use `--target C:\MathAAC-Kokoro` for a short installation path if needed). Then run `python App/app.py --setup-voices` while online to download the model, pronunciation resources, and all nine voices. Start normally with `python App/app.py`; normal operation uses the downloaded model offline. US and UK voices use their corresponding pronunciation pipelines. Setup requires internet access, disk space, and may take several minutes.
-
-If Kokoro is unavailable, speech falls back only to an installed local device voice. Remote browser voices are excluded. The local Python server must remain running for Kokoro; opening the HTML alone uses device fallback. Voice quality and synthesis speed depend on the device.
-
-This allows users to communicate their mathematical responses without needing to verbally produce the response themselves.
-
-### Calculator
-
-The application includes a calculator for solving and communicating mathematical problems.
-
-The planned functionality is intended to support multiple types of mathematical operations rather than limiting the application to basic arithmetic.
-
-#### Named functions
-
-Open **Math → Functions → Define**, enter a name, variables, and a rule such as `2x+3`, then choose **Save function**. On **Evaluate**, select the saved function and enter `5` to get `13`. **Edit rule** returns to Define; **Use in calculator** inserts a call in the bar with the cursor inside its parentheses.
-
-For composition, choose the outer function and input on Evaluate, then choose an inner function on **Compose**. You can also enter definitions and expressions directly into the bar and press **Solve** or Enter:
-
-* Define `f(x)=2x+3`, then evaluate `f(5)` to get `13`.
-* Define `g(x)=x^2`, then evaluate `f(g(2))` to get `11`.
-* Define compositions directly: `h(t)=f(g(t))`.
-* Multiple parameters work too: `h(x,y)=x^2+y^2`, then `h(3,4)` gives `25`.
-* Use implied multiplication (`2x`, `2(x+1)`), powers (`^` or `**`), and existing scientific functions. Write `x*y` for products of distinct named variables.
-* `y=x^2` is shorthand for `f(x)=x^2`. Angles use radians; `log` and `ln` remain natural logarithms, and `log10` is base ten.
-
-Definitions are saved in this browser when local storage is available. The saved-function selectors and **List functions** show them; saving the same name replaces its definition. Define dependencies first. Invalid or circular definitions leave previous definitions intact. Clear clears the selected keypad field without deleting saved functions. `Ans` retains the last numeric result and is captured when used in a definition.
-
-Evaluation returns real numeric values. Symbolic simplification, equation solving, and step-by-step solutions are not included.
-
-Function tests: `node --test --experimental-test-isolation=none App/tests/functions.test.cjs`.
-
-### Personalized Icons
-
-The interface can be customized for individual users.
-
-Personalized icons are intended to make the application easier to recognize and navigate based on the user's individual preferences and accessibility needs.
-
-### Optional Smart Assistance
-
-An optional smart-assistance system may provide:
-
-* Word suggestions
-* Response suggestions
-* Autocorrect
-* Potential mathematical solution assistance
-
-Smart assistance is considered an optional feature and may depend on the capabilities and scope of the final implementation.
-
----
-
-## Why an App?
-
-The original project concept involved creating a standalone AAC device. However, meeting the desired 8–12 hours of continuous operation would require a larger battery system and specialized charging equipment, increasing the cost, weight, and complexity of the device.
-
-A mobile application provides a more practical alternative because modern tablets and mobile devices already contain many of the components required by the system.
-
-This approach allows the project to focus on **accessibility, communication, and mathematical functionality** rather than developing custom hardware.
-
-The application is also:
-
-* More portable
-* Less expensive
-* Easier to update
-* Easier to adapt to changing user requirements
-* Usable on devices the user may already own
-
----
-
-## Supported Mathematical Communication
-
-Mind2Voice is intended to support mathematical communication across multiple levels, including:
-
-* Basic arithmetic
-* Algebra
-* Trigonometry
-* Functions
-* Mathematical symbols
-* Greek letters
-* College-level calculus
-
-The goal is not simply to provide a calculator, but to allow the user to **communicate mathematical ideas**.
-
----
-
-## Technical Approach
-
-### Current source layout
-
-The browser loads `app.js` (boards, navigation, settings, speech), `functions.js` (the shared math engine and tool interfaces), `shared-input.js` (linked editing and Undo), and `calculator-access.js` (calculator accessibility controls). `index (1).html` contains the layout, and `styles.css` contains the styling. Older standalone copies of the function and math-tool implementations have been removed; update the shared implementation in `functions.js`.
-
-Run locally with `python App/app.py --no-browser`, then open `http://127.0.0.1:8765/`. The server redirects root and legacy index URLs to the only entry page, `App/index (1).html`. Run checks with:
+| File | Purpose |
+| --- | --- |
+| `App/index.html` | Page structure and controls |
+| `App/styles.css` | Layout and themes |
+| `App/app.js` | Boards, navigation, settings, and speech |
+| `App/functions.js` | Math engine and tool forms |
+| `App/workspace.js` | Shared editing, Undo, previews, and expression builders |
+| `App/app.py` | Local server and Kokoro speech |
+| `App/sw.js`, `App/manifest.json` | Offline app shell and installation metadata |
+| `App/requirements-kokoro.txt` | Local speech dependencies |
+| `App/tests/` | Math, runtime, server, and browser regressions |
 
 ```text
 node --test --experimental-test-isolation=none App/tests/functions.test.cjs App/tests/math-tools.test.cjs App/tests/runtime.test.cjs
 python -B -m unittest discover -s App/tests -p "*_test.py"
 ```
 
-An optional real-browser check is available in `App/tests/layout-check.cjs`. It checks all screens, discrete operations, touch-target bounds, overlap, and shared-field flows using an isolated Chrome session on debugging port 9224 and the app on port 8766.
+For real-browser checks, run the app on port 8766 and an isolated Chrome session with `--remote-debugging-port=9224`, then run `node App/tests/layout-check.cjs`. It checks screen layout, touch targets, overlap, and button workflows. Screenshots are written to the system temporary directory.
 
-The full-page runtime tests load scripts in the order declared in `index (1).html`. When changing cached frontend assets, update their version in `index (1).html`, `sw.js`, and the startup URL in `app.py` together.
-
-### Software
-
-The proposed technology stack includes:
-
-* **Android / iOS**
-* **Python**
-* **Text-to-Speech (TTS)**
-* **Optional AI**
-
-The application will use a backend programming language such as Python or C++ for application logic and a separate frontend language for the visual interface.
-
-### Interface Structure
-
-The application will use multiple mathematical boards to organize different types of input.
-
-For example, separate boards may contain:
-
-* Numbers
-* Letters
-* Mathematical symbols
-* Greek letters
-* Other specialized mathematical inputs
-
-The user will be able to switch between these boards through a touch-based menu.
-
-Each board can contain its own functions and supporting code to help organize the application and make development easier.
-
----
-
-## Accessibility Considerations
-
-Accessibility is a central component of the project rather than an additional feature.
-
-The interface is being designed around:
-
-* Touch-based interaction
-* Simple navigation
-* Customizable controls
-* Personalized icons
-* Text-to-speech output
-* Reduced reliance on verbal communication
-
-Because accessibility needs vary between individuals, personalization is an important part of the application's design.
-
----
-
-## Project Impact
-
-Mind2Voice is intended to address a gap between AAC technology and mathematical communication.
-
-By providing dedicated tools for mathematical input, the application could give nonverbal and limited-speech students more ways to participate in mathematics.
-
-The goal is to help make mathematics and STEM education more accessible while giving users greater independence in the classroom.
-
-> **More accessible communication can create more opportunities to learn, participate, and pursue STEM.**
-
----
-
-## Project Status
-
-**Current Status:** In Development
-
-Mind2Voice is currently being developed as a student project. Features, technology choices, and implementation details may change as development and testing continue.
+When changing frontend assets, update the cache version in `index.html`, `sw.js`, and the startup URL in `app.py` together. No build step or JavaScript package installation is required.

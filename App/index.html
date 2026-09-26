@@ -4,7 +4,7 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#1269d3"><meta name="mobile-web-app-capable" content="yes">
   <title>Math AAC Workspace</title>
-  <link rel="manifest" href="manifest.json"><link rel="stylesheet" href="styles.css?v=31">
+  <link rel="manifest" href="manifest.json"><link rel="stylesheet" href="styles.css?v=32">
 </head>
 <body>
   <header class="topbar">
@@ -18,7 +18,7 @@
   </header>
   <main class="workspace">
     <div class="display-row">
-      <input id="display" aria-label="Math and speech bar" autocomplete="off" placeholder="Enter math here">
+      <input id="display" aria-label="Math and speech bar" autocomplete="off" spellcheck="false" placeholder="Input math to solve or speak">
       <button class="button blue" data-action="speak">Speak</button>
       <button class="button" id="calculator-stop">Stop</button>
       <button class="button" id="calculator-undo" disabled>Undo</button>
@@ -117,7 +117,7 @@
     <section class="subject" id="settings" aria-label="Speech settings"><div class="settings-grid"><div class="form-card"><label for="kokoro-voice">Local neural voice (Kokoro)</label><select id="kokoro-voice"><option value="af_heart">Heart</option><option value="af_bella">Bella</option><option value="af_sarah">Sarah</option><option value="am_adam">Adam</option><option value="am_michael">Michael</option><option value="bf_emma">Emma</option><option value="bf_isabella">Isabella</option><option value="bm_george">George</option><option value="bm_lewis">Lewis</option></select><label for="voice-select">Installed device fallback voice</label><select id="voice-select"></select></div><div class="form-card"><label for="rate-range">Speech speed</label><input id="rate-range" type="range" min="100" max="240" value="175"><label for="volume-range">Volume</label><input id="volume-range" type="range" min="30" max="100" value="100"><button class="button blue" data-action="test-voice">Test voice</button><p class="engine-status hint"></p></div></div></section>
     <p class="status" id="status" role="status" aria-live="polite">Ready.</p>
   </main>
-  <script src="app.js?v=31"></script><script>initializeSettings();</script>
-  <script src="functions.js?v=31"></script><script src="shared-input.js?v=31"></script><script src="calculator-access.js?v=31"></script>
+  <script src="app.js?v=32"></script><script>initializeSettings();</script>
+  <script src="functions.js?v=32"></script><script src="workspace.js?v=32"></script>
 </body>
 </html>

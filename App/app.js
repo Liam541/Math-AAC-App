@@ -164,6 +164,11 @@ function initializeSpeech() {
     ['eˣ', 'exponential '],
     ['∫', 'integral '],
     ['Σ', 'summation '],
+    ['Π', 'product '],
+    ['∖', 'set difference '],
+    ['!=', ' not equal to '],
+    ['<=', ' less than or equal to '],
+    ['>=', ' greater than or equal to '],
     ['≠', 'not equal '],
     ['≤', 'less than or equal to '],
     ['≥', 'greater than or equal to '],
@@ -197,6 +202,10 @@ function initializeSpeech() {
     ['log10(', 'log base ten of '],
     ['log(', 'natural log of '],
     ['factorial(', 'factorial of '],
+    ['abs(', 'absolute value of '],
+    ['ceil(', 'ceiling of '],
+    ['floor(', 'floor of '],
+    ['sign(', 'sign of '],
     ['π', 'pi'],
     ['∞', 'infinity'],
     ['√', 'square root'],
@@ -209,6 +218,11 @@ function initializeSpeech() {
     ['−', ' minus '],
     ['-', ' minus '],
     ['^', ' to the power of '],
+    ['²', ' squared '],
+    ['³', ' cubed '],
+    ['<', ' less than '],
+    ['>', ' greater than '],
+    ['%', ' modulo '],
     ['=', ' equals '],
     ['(', ' open parenthesis '],
     [')', ' close parenthesis '],
@@ -242,16 +256,22 @@ function initializeSpeech() {
     document.querySelector('#status').textContent = 'Speech stopped.';
   };
   window.speak = async function (text = document.querySelector('#display').value) {
-    if (!text.trim()) return;
+    if (!text.trim()) { setStatus('Input math or a message in the speech bar first.'); return; }
     const requestId = ++speechRequest;
     speechController?.abort();
     stopCurrentAudio();
     window.speechSynthesis?.cancel();
     let spoken = window.AACFunctions?.speechSource(text) || text;
     // Preserve punctuation in AAC messages; pronounce factorial notation after an operand.
-    spoken = spoken === '!' ? 'factorial' : spoken.replace(/(\d|\)|\b[a-z])(!+)/gi,
+    spoken = spoken.replace(/\b(\d+(?:\.\d+)?)[eE]([+-]?\d+)\b/g, '$1 times ten to the power of $2');
+    spoken = spoken.replace(/\bAns\b/g, 'last answer');
+    spoken = spoken === '!' ? 'factorial' : spoken.replace(/(\d|\)|\b[a-z])(!+)(?!=)/gi,
       (_match, operand, marks) => operand + ' factorial '.repeat(marks.length));
-    for (const [symbol, words] of speechWords) spoken = spoken.replaceAll(symbol, words);
+    for (const [symbol, words] of speechWords) {
+      if (/^[a-z0-9]+\($/.test(symbol)) {
+        spoken = spoken.replace(new RegExp('\\b' + symbol.slice(0, -1) + '\\s*\\(', 'g'), words);
+      } else spoken = spoken.replaceAll(symbol, words);
+    }
     document.querySelector('#status').textContent = 'Preparing local speech...';
     const controller = new AbortController();
     speechController = controller;

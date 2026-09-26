@@ -11,7 +11,7 @@ const fs = require('node:fs');
  const send=(method,params={})=>new Promise((resolve,reject)=>{pending.set(++id,{resolve,reject});ws.send(JSON.stringify({id,method,params}));});
  const run=async expression=>{const r=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw Error(r.exceptionDetails.exception.description);return r.result.value;};
  await send('Runtime.enable'); await send('Emulation.setFocusEmulationEnabled',{enabled:true}); await send('Network.enable'); await send('Network.setCacheDisabled',{cacheDisabled:true}); await send('Network.setBypassServiceWorker',{bypass:true});
- await send('Page.navigate',{url:'http://127.0.0.1:8766/index%20(1).html'});
+ await send('Page.navigate',{url:'http://127.0.0.1:8766/index.html'});
  await new Promise(r=>setTimeout(r,800));
  const failures=[];let count=0;
  for(const [width,height] of [[1280,650],[1280,720],[1366,650],[1920,1080]]) for(const size of [18,24]) {
@@ -44,7 +44,25 @@ const fs = require('node:fs');
   showToolPage('function-evaluate');get('function-arguments').value='5';get('evaluate-function').click();
   assert(get('display').value==='13','Saved function evaluation failed');
   get('edit-function').click();assert(get('function-define').classList.contains('active'),'Edit did not return to Define');
-  sharedMath.choose(null);sharedMath.erase(true);return 'Greek integral, answer speech, Settings, Appearance, and function editing passed';
+  selectSubtab(document.querySelector('[data-subtab="discrete"]'));
+  const sendResult=document.querySelector('[data-result-to-bar="discrete-result"]');
+  get('discrete-operation').value='sum';get('discrete-operation').onchange();
+  const before=get('display').value;sendResult.click();
+  assert(get('display').value===before,'Uncalculated result replaced input');
+  get('discrete-calculate').click();sendResult.click();
+  assert(get('display').value.includes('55'),'Discrete result did not reach speech bar');
+  get('series-upper').focus();get('series-upper').value='3';get('series-upper').dispatchEvent(new Event('input',{bubbles:true}));
+  sendResult.click();assert(get('display').value==='3','Stale result replaced edited input');
+  get('discrete-calculate').click();sendResult.click();assert(get('display').value.includes('14'),'Updated sum failed');
+  get('series-upper').focus();get('discrete-operation').value='union';get('discrete-operation').onchange();
+  assert(sharedMath.target()===null,'Hidden discrete field still receives keypad input');
+  get('discrete-calculate').click();sendResult.click();assert(get('display').value.includes('{1, 2, 3, 4}'),'Set union failed');
+  selectSubtab(document.querySelector('[data-subtab="algebra"]'));sharedMath.choose(null);sharedMath.erase(true);
+  get('template-first').focus();sharedMath.edit('1');get('template-second').focus();sharedMath.edit('2');
+  get('calculator-insert-template').click();get('shared-solve').click();assert(get('display').value==='0.5','Fraction builder failed');
+  selectSubtab(document.querySelector('[data-subtab="calculus"]'));get('integral-example').click();
+  get('shared-use-answer').click();assert(get('display').value==='9'&&get('shared-use-answer').hidden,'Use answer did not finish result reuse');
+  sharedMath.choose(null);sharedMath.erase(true);return 'Greek integral, answer speech, Settings, Appearance, function editing, discrete results, stale-result protection, fractions, and answer reuse passed';
  })()`);
  await send('Emulation.setDeviceMetricsOverride',{width:1366,height:650,deviceScaleFactor:1,mobile:false});
  await run(`document.documentElement.style.setProperty('--font','18px');selectTab('math');sharedMath.choose(null);selectSubtab(document.querySelector('[data-subtab="basic"]'));`);
@@ -53,5 +71,21 @@ const fs = require('node:fs');
   await run(panel==='settings'||panel==='appearance' ? `selectTab('${panel}')` : `selectTab('math');selectSubtab(document.querySelector('[data-subtab="${panel}"]'));`);
   fs.writeFileSync(require('node:path').join(require('node:os').tmpdir(),'math-aac-'+panel+'.png'),Buffer.from((await send('Page.captureScreenshot',{format:'png'})).data,'base64'));
  }
- console.log(JSON.stringify({count,functional,errors,failures},null,2));ws.close();if(errors.length||failures.length)process.exitCode=1;
+ const offlineAssets = await run(`(async()=>{
+  await navigator.serviceWorker.ready;
+  const cache=await caches.open('math-aac-v32-workspace');
+  const assets=['index.html','styles.css?v=32','app.js?v=32','functions.js?v=32','workspace.js?v=32','manifest.json'];
+  for(const asset of assets)if(!(await cache.match(asset)))throw Error('Missing offline asset: '+asset);
+  return assets.length;
+ })()`);
+ await send('Network.setBypassServiceWorker',{bypass:false});
+ await send('Network.emulateNetworkConditions',{offline:true,latency:0,downloadThroughput:0,uploadThroughput:0});
+ try {
+  await send('Page.navigate',{url:'http://127.0.0.1:8766/index.html?offline-check'});
+  await new Promise(r=>setTimeout(r,800));
+  await run(`(()=>{document.getElementById('display').value='2+3';window.evaluate();if(document.getElementById('display').value!=='5')throw Error('Offline calculation failed');})()`);
+ } finally {
+  await send('Network.emulateNetworkConditions',{offline:false,latency:0,downloadThroughput:-1,uploadThroughput:-1});
+ }
+ console.log(JSON.stringify({count,functional,offlineAssets,offlineCalculation:'passed',errors,failures},null,2));ws.close();if(errors.length||failures.length)process.exitCode=1;
 })().catch(e=>{console.error(e);process.exit(1);});
